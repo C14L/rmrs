@@ -62,7 +62,7 @@ fn srlist_post(msg: Json<SrState>) -> JsonValue {
 
 fn main() -> Result<(), Error> {
     let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:8000"]);
-
+    let pages_filesnames = pages::fetch_pages_filenames();
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
         allowed_methods: vec![Method::Get, Method::Post]
@@ -79,6 +79,7 @@ fn main() -> Result<(), Error> {
         .mount("/api/v2", routes![srlist_get, srlist_post, pics_get])
         .mount("/", routes![pages::home])
         .attach(cors)
+        .manage(pages_filesnames)
         .launch();
 
     Ok(())
