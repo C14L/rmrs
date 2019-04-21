@@ -3,13 +3,13 @@ extern crate dirs;
 
 use rocket::response::content::Html;
 use rocket::State;
+use std::collections::HashMap;
 use std::env;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::fs::DirEntry;
 use std::path::{PathBuf};
 
-pub fn fetch_pages_filenames() -> Vec<DirEntry> {
+pub fn fetch_pages_filenames() -> Vec<fs::DirEntry> {
     // only get .html files
     let html_ext = OsStr::new("html");
     // pages dir is set with a environment variable
@@ -35,16 +35,34 @@ pub fn fetch_pages_filenames() -> Vec<DirEntry> {
         .collect()
 }
 
+pub fn preload_static_pages(pages: &mut HashMap<OsString, String>) {
+    for f in fetch_pages_filenames() {
+        let k = f.file_name();
+        let v = fs::read_to_string(f.path());
+
+        match v {
+            Ok(html) => &pages.insert(k, html),
+            Err(_) => panic!("Aaaaaahhhh!"),
+        };
+    }
+}
+
 #[get("/")]
-pub fn home(filenames: State<'_, Vec<DirEntry>>) -> Html<String> {
+pub fn home(html_pages: State<'_, HashMap<OsString, String>>) -> Html<String> {
     let pagename = OsStr::new("index.html");
-    let pagepath = filenames.inner().into_iter().find(|x| x.file_name() == pagename);
-    let pagehtml = match pagepath {
-        Some(p) => fs::read_to_string(p.path()),
-        None => panic!("Oh noes!"),
-    };
-    match pagehtml {
-        Ok(s) => Html(format!("{}", s)),
-        Err(_) => Html(String::from("")),
+
+    match html_pages.get(pagename) {
+        Some(s) => Html(s.clone()),
+        None => Html(String::from("Not found!")),
+    }
+}
+
+#[get("/settings.html")]
+pub fn settings(html_pages: State<'_, HashMap<OsString, String>>) -> Html<String> {
+    let pagename = OsStr::new("settings.html");
+
+    match html_pages.get(pagename) {
+        Some(s) => Html(s.clone()),
+        None => Html(String::from("Not found!")),
     }
 }

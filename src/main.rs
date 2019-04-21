@@ -10,6 +10,8 @@ use rocket::{get, routes};
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Error};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::ffi::OsString;
 
 mod pages;
 
@@ -61,8 +63,10 @@ fn srlist_post(msg: Json<SrState>) -> JsonValue {
 }
 
 fn main() -> Result<(), Error> {
-    let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:8000"]);
-    let pages_filesnames = pages::fetch_pages_filenames();
+    let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:8001"]);
+    let mut html_pages: HashMap<OsString, String> = HashMap::new();
+    pages::preload_static_pages(&mut html_pages);
+
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
         allowed_methods: vec![Method::Get, Method::Post]
@@ -77,9 +81,9 @@ fn main() -> Result<(), Error> {
 
     rocket::ignite()
         .mount("/api/v2", routes![srlist_get, srlist_post, pics_get])
-        .mount("/", routes![pages::home])
+        .mount("/", routes![pages::home, pages::settings])
         .attach(cors)
-        .manage(pages_filesnames)
+        .manage(html_pages)
         .launch();
 
     Ok(())
