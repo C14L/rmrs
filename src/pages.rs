@@ -1,4 +1,3 @@
-
 extern crate dirs;
 
 use rocket::response::content::Html;
