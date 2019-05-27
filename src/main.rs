@@ -40,9 +40,24 @@ fn main() -> Result<(), Error> {
     .to_cors()?;
 
     rocket::ignite()
-        .mount("/api/v2", routes![
-            api::srlist_get, api::srlist_post, api::pics_get, api::pics_post])
-        .mount("/", routes![pages::home, pages::settings, redditauth::oauth_callback_get])
+        .mount(
+            "/api/v2",
+            routes![
+                api::srlist_get,
+                api::srlist_post,
+                api::pics_get,
+                api::pics_post,
+            ],
+        )
+        .mount(
+            "/",
+            routes![
+                pages::home,
+                pages::settings,
+                redditauth::oauth_call_get,
+                redditauth::oauth_callback_get,
+            ],
+        )
         .attach(cors)
         .manage(html_pages)
         .launch();

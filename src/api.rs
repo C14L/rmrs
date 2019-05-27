@@ -2,7 +2,6 @@
 
 extern crate redis;
 
-use log::debug;
 use redis::{Commands, Connection};
 use rocket::get;
 use rocket_contrib::json::{Json, JsonValue};
