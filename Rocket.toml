@@ -3,6 +3,11 @@ forms = 32768
 json = 1048576 # this is an extra used by the json contrib module
 msgpack = 1048576 # this is an extra used by the msgpack contrib module
 
+# With a `pool_size` key:
+[global.databases]
+redis_db = { url = "redis://127.0.0.1/", pool_size = 10 }
+pg_db = { url = "postgres://rmrsuser:plaplapla@localhost:5432/rmrs", pool_size = 10 }
+
 [development]
 address = "localhost"
 port = 8001

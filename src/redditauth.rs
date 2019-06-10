@@ -4,7 +4,6 @@
 extern crate reqwest;
 
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use reqwest::Url;
 use rocket::http::{Cookie, Cookies};
 use rocket::request::Form;
@@ -12,12 +11,18 @@ use rocket::response::content::Html;
 use rocket::response::status::NotFound;
 use rocket::response::Redirect;
 use serde::Deserialize;
+use rocket_contrib::databases::redis;
+use rocket_contrib::databases::redis::Commands;
+use rocket_contrib::databases::redis::FromRedisValue;
 //use std::collections::HashMap;
 
 const REDDIT_API_ENDPOINT: &'static str = "https://www.reddit.com/api/v1/access_token";
 const API_ENDPOINT: &'static str = "http://localhost:8001/redditcallback.html";
 const APP_NAME: &'static str = "BtNjVhBUlLJDXg";
 const APP_SECRET: &'static str = "i5x4WPmHUA6Q7rYHB1SuOMemgSs";
+
+#[database("redis_db")]
+pub struct RedisDbConn(redis::Connection);
 
 #[derive(FromForm)]
 pub struct RedditCallbackReply {
@@ -28,11 +33,13 @@ pub struct RedditCallbackReply {
 
 #[derive(Debug, Deserialize)]
 pub struct RedditAccessToken {
-    access_token: String,
-    token_type: String,
-    expires_in: usize,
-    refresh_token: String,
-    scope: String,
+    init_state: Option<String>, // to verify when obtaining initial code
+    init_code: Option<String>,  // to fetch the initial access token
+    access_token: Option<String>,
+    token_type: Option<String>,
+    expires_in: Option<usize>,
+    refresh_token: Option<String>,
+    scope: Option<String>,
     update_time: Option<u64>,
     expire_time: Option<u64>,
     create_time: Option<u64>,
@@ -55,9 +62,9 @@ impl RedditAccessToken {
             .json()
             .and_then(|mut x: RedditAccessToken| {
                 let t = SystemTime::now().duration_since(UNIX_EPOCH).expect("No time?").as_secs();
-                x.create_time = Some(t.clone());
-                x.update_time = Some(t.clone());
-                x.expire_time = Some(t.clone() + x.expires_in.clone() as u64);
+                x.create_time = Some(t);
+                x.update_time = Some(t);
+                x.expire_time = x.expires_in.map(|x| x as u64 + t);
                 Ok(x)
             })
     }
@@ -65,7 +72,7 @@ impl RedditAccessToken {
     pub fn refresh(self) -> Result<RedditAccessToken, reqwest::Error> {
         let body = [
             ("grant_type", "refresh_token"),
-            ("refresh_token", &self.refresh_token.as_str()),
+            ("refresh_token", &self.refresh_token.expect("No token!").as_str()),
         ];
         reqwest::Client::new()
             .post(Url::parse(REDDIT_API_ENDPOINT).unwrap())
@@ -75,8 +82,8 @@ impl RedditAccessToken {
             .json()
             .and_then(|mut x: RedditAccessToken| {
                 let t = SystemTime::now().duration_since(UNIX_EPOCH).expect("No time?").as_secs();
-                x.update_time = Some(t.clone());
-                x.expire_time = Some(t.clone() + x.expires_in.clone() as u64);
+                x.update_time = Some(t);
+                x.expire_time = x.expires_in.map(|x| x as u64 + t);
                 Ok(x)
             })
     }
@@ -85,34 +92,45 @@ impl RedditAccessToken {
 #[derive(Debug, Deserialize)]
 pub struct AuthSession {
     sess_id: String,
-    token: RedditAccessToken,
+    token: Option<RedditAccessToken>,
 }
 
 impl AuthSession {
-    pub fn new(sess_id: &str, token: RedditAccessToken) -> AuthSession {
-        AuthSession {
-            sess_id: sess_id.into(),
-            token: token,
-        }
+    pub fn new(sess_id: &str) -> AuthSession {
+        let redis_key = format!("sess-{}", sess_id);
+
+        AuthSession { sess_id: sess_id.into(), token: None }
+    }
+    pub fn set_token(mut self, token: RedditAccessToken) -> AuthSession {
+        self.token = Some(token);
+        self
     }
 }
 
 
 // Simply redirects the client to Reddit's oAuth page.
 #[get("/redditauth.html")]
-pub fn oauth_call_get(mut cookies: Cookies) -> Result<Redirect, NotFound<String>> {
+pub fn oauth_call_get(
+    redis_conn: RedisDbConn,
+    mut cookies: Cookies,
+) -> Result<Redirect, NotFound<String>> {
     // TODO: Generate a `state` uuid and remember it to verify in oauth_callback.
     // TODO: Load `client_id` and `redirect_uri` from some conf file.
 
     let _sess_cookie = match cookies.get_private("rmrs_sessid") {
         Some(cookie) => {
             // There is a session cookie, check if it has a valid token in Redis.
+            let redis_key = format!("sess-{}", cookie.value());
+            let sess: Result<RedditAccessToken, _> = redis_conn.hgetall(redis_key);
 
-            // If it does, try to refresh it.
+            if sess.is_some() {
+                // If it does, try to refresh it.
+                println!("FOUND A REFRESH TOKEN")
+                // If it refreshes, auth was sucessful --> redir to app.
 
-            // If it refreshes, auth was sucessful --> redir to app.
+            }
 
-            // If any of that fails, reuse cookie and we need to go through oauth flow.
+            // If any of that fails, re-use cookie and we need to go through oauth flow.
             cookie
         },
         None => {
@@ -120,6 +138,8 @@ pub fn oauth_call_get(mut cookies: Cookies) -> Result<Redirect, NotFound<String>
             let random_uuid = "a8yr7ersdfsd4iuyhli54-=09u8hfi3;fdk-0";
             let cookie = Cookie::new("rmrs_sessid", random_uuid);
             cookies.add_private(cookie.clone());
+            let redis_key = format!("sess-{}", cookie.value());
+            let _: Option<String> = redis_conn.hset(redis_key, "refresh_token", "").ok();
             cookie
         }
     };
@@ -149,23 +169,26 @@ pub fn oauth_callback_get(
     });
     println!("COOKIE: {:?}", &sess_cookie);
 
-    let token: Option<RedditAccessToken> = params.code.clone().and_then(
+    let reddit_token: Option<RedditAccessToken> = params.code.clone().and_then(
         |c| RedditAccessToken::new(c).ok());
-    let sess: Option<AuthSession> = token.and_then(
-        |t| Some(AuthSession::new(sess_cookie.value(), t)));
+
+    let sess: Option<AuthSession> = reddit_token.and_then(
+        |t| Some(AuthSession::new(sess_cookie.value()).set_token(t)));
+
     println!("SESS: {:?}", &sess);
 
     match sess {
         Some(s) => {
+            let token = s.token.unwrap();
             Ok(Html(format!(
                 "session_id: '{}' and state: '{}' -- access_token: '{}', token_type: '{}', expires_in: '{}', scope: '{}', refresh_token: '{}'.",
                 sess_cookie.value(),
                 params.state.clone().unwrap_or_default(),
-                s.token.access_token,
-                s.token.token_type,
-                s.token.expires_in,
-                s.token.scope,
-                s.token.refresh_token,
+                token.access_token,
+                token.token_type,
+                token.expires_in,
+                token.scope,
+                token.refresh_token,
             )))
         },
         None => Err(NotFound("Invalid token.".to_string()))

@@ -15,7 +15,6 @@ mod pages;
 mod redditapi;
 mod redditauth;
 
-
 fn main() -> Result<(), Error> {
 
     // println!("Fetching comments from Reddit...");
@@ -24,6 +23,7 @@ fn main() -> Result<(), Error> {
 
     let allowed_origins =
         AllowedOrigins::some_exact(&["http://localhost:8000", "http://localhost:8001"]);
+
     let mut html_pages: HashMap<OsString, String> = HashMap::new();
     pages::preload_static_pages(&mut html_pages);
 
@@ -59,6 +59,7 @@ fn main() -> Result<(), Error> {
             ],
         )
         .attach(cors)
+        .attach(redditauth::RedisDbConn::fairing())
         .manage(html_pages)
         .launch();
 
