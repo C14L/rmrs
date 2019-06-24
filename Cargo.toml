@@ -5,16 +5,19 @@ authors = ["Christian Steimel <me@C14L.com>"]
 edition = "2018"
 
 [dependencies]
-rocket = "0.4.0"
-rocket_cors = "0.5.0-beta-1"
+actix-rt = "0.2.2"
+actix-web = "1.0.0"
+actix-files = "0.1.1"
+actix-session = "0.1.0"
+futures = "0.1.25"
+env_logger = "0.5"
+bytes = "0.4"
+
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.39"
 dirs = "1.0.5"
 reqwest = "0.9.15"
 redis = "0.10.0"
-log = "0.4.6"
 
-[dependencies.rocket_contrib]
-version = "0.4.0"
-default-features = false
-features = ["json", "redis_pool", "diesel_postgres_pool"]
+# redis_db = { url = "redis://127.0.0.1/", pool_size = 10 }
+# pg_db = { url = "postgres://rmrsuser:plaplapla@localhost:5432/rmrs", pool_size = 10 }
