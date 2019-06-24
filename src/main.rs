@@ -1,67 +1,49 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-#![allow(dead_code)]
+//#[macro_use] extern crate actix_web;
 
-#[macro_use] extern crate rocket;
-#[macro_use] extern crate rocket_contrib;
+//
+// Basic example:
+//
+// https://github.com/actix/examples/blob/master/basics/src/main.rs
+//
 
-use rocket::http::Method;
-use rocket::routes;
-use rocket_cors::{AllowedHeaders, AllowedOrigins, Error};
-use std::collections::HashMap;
-use std::ffi::OsString;
+use std::{env, io};
 
-mod api;
-mod pages;
-mod redditapi;
-mod redditauth;
+use actix_files as fs;
+use actix_web::middleware::cors::Cors;
+use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::{http, middleware, web, App, HttpServer, HttpResponse};
 
-fn main() -> Result<(), Error> {
+mod helpers;
+mod views;
 
-    // println!("Fetching comments from Reddit...");
-    // let comments = redditapi::fetch_user_comments("c14l");
-    // println!("{:?}", comments);
+fn main() -> io::Result<()> {
+    env::set_var("RUST_LOG", "actix_web=debug");
+    // env_logger::init();
 
-    let allowed_origins =
-        AllowedOrigins::some_exact(&["http://localhost:8000", "http://localhost:8001"]);
-
-    let mut html_pages: HashMap<OsString, String> = HashMap::new();
-    pages::preload_static_pages(&mut html_pages);
-
-    let cors = rocket_cors::CorsOptions {
-        allowed_origins,
-        allowed_methods: vec![Method::Get, Method::Post]
-            .into_iter()
-            .map(From::from)
-            .collect(),
-        allowed_headers: AllowedHeaders::some(&["Accept", "Content-Type"]),
-        allow_credentials: false,
-        ..Default::default()
-    }
-    .to_cors()?;
-
-    rocket::ignite()
-        .mount(
-            "/api/v2",
-            routes![
-                api::srlist_get,
-                api::srlist_post,
-                api::pics_get,
-                api::pics_post,
-            ],
-        )
-        .mount(
-            "/",
-            routes![
-                pages::home,
-                pages::settings,
-                redditauth::oauth_call_get,
-                redditauth::oauth_callback_get,
-            ],
-        )
-        .attach(cors)
-        .attach(redditauth::RedisDbConn::fairing())
-        .manage(html_pages)
-        .launch();
-
-    Ok(())
+    HttpServer::new(|| App::new()
+        .wrap(
+            Cors::new() // <- Construct CORS middleware builder
+              .allowed_origin("http://127.0.0.1:8080/")
+              .allowed_methods(vec!["HEAD", "GET", "POST", "PATCH", "DELETE"])
+              .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+              .allowed_header(http::header::CONTENT_TYPE)
+              .max_age(3600))
+        .wrap(IdentityService::new(
+            CookieIdentityPolicy::new(&[0; 32]).name("auth").secure(false)))
+        // enable logger - always register actix-web Logger middleware last
+        .wrap(
+            middleware::Logger::default())
+        // .service(
+        //     web::resource("/").route(web::get().to(views::home)))
+        .service(
+            // Simply redirects the client to Reddit's oAuth page.
+            web::resource("/redditauth.html").route(web::get().to(views::redditauth)))
+        .service(
+            // Redirected to by Reddit after auth okay.
+            web::resource("/redditcallback.html").route(web::get().to(views::redditcallback)))
+        .service(
+            fs::Files::new("/", "../frontend/").index_file("index.html"))
+        .default_service(
+            web::route().to(|| HttpResponse::NotFound()))
+    ).bind("127.0.0.1:8080")?.run()
 }

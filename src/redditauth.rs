@@ -5,16 +5,7 @@ extern crate reqwest;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use reqwest::Url;
-use rocket::http::{Cookie, Cookies};
-use rocket::request::Form;
-use rocket::response::content::Html;
-use rocket::response::status::NotFound;
-use rocket::response::Redirect;
 use serde::Deserialize;
-use rocket_contrib::databases::redis;
-use rocket_contrib::databases::redis::Commands;
-use rocket_contrib::databases::redis::FromRedisValue;
-//use std::collections::HashMap;
 
 const REDDIT_API_ENDPOINT: &'static str = "https://www.reddit.com/api/v1/access_token";
 const API_ENDPOINT: &'static str = "http://localhost:8001/redditcallback.html";
@@ -81,7 +72,10 @@ impl RedditAccessToken {
             .send()?
             .json()
             .and_then(|mut x: RedditAccessToken| {
-                let t = SystemTime::now().duration_since(UNIX_EPOCH).expect("No time?").as_secs();
+                let t = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("No time?")
+                    .as_secs();
                 x.update_time = Some(t);
                 x.expire_time = x.expires_in.map(|x| x as u64 + t);
                 Ok(x)
