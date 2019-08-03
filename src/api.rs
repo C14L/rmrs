@@ -2,9 +2,9 @@
 
 extern crate redis;
 
+use actix_web::http::{header, StatusCode};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
 use redis::{Commands, Connection};
-use rocket::get;
-use rocket_contrib::json::{Json, JsonValue};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -52,21 +52,6 @@ fn get_redis_conn() -> Connection {
     conn
 }
 
-#[get("/pics.json", format = "json", rank = 1)]
-pub fn pics_get() -> JsonValue {
-    let conn = get_redis_conn();  // TODO: use connection pool
-    let result: Vec<String> = conn.lrange("p1", 0, -1).unwrap();
-    let pics: Vec<UserPic> = result.iter().map(|x| UserPic { url: x.clone() }).collect();
-    json!(pics)
-}
-
-#[post("/pics.json", format = "json", data = "<msg>", rank = 3)]
-pub fn pics_post(msg: Json<UserPic>) -> JsonValue {
-    let conn = get_redis_conn();  // TODO: use connection pool
-    let _: usize = conn.rpush("p1", &msg.url).unwrap();
-    json!({ "status": "ok" })  // TODO: Respond here with a simple HTTP 200
-}
-
 fn fetch_sr_subscribed(user_id: u32) -> Vec<UserSubs> {
     let conn = get_redis_conn();  // TODO: use connection pool
     let key = format!("user-{}-subs", user_id);
@@ -74,25 +59,49 @@ fn fetch_sr_subscribed(user_id: u32) -> Vec<UserSubs> {
     serde_json::from_str(&raw).unwrap_or_default()
 }
 
-// fn save_sr_subscribed(user_id: u32, data: Vec<UserSubs>) {
-//     let conn = get_redis_conn();  // TODO: use connection pool
-//     let key = format!("user-{}-subs", user_id);
-//     conn.set(key, serde_json::to_string(&data).unwrap());
-// }
+fn save_sr_subscribed(user_id: u32, data: Vec<UserSubs>) {
+    let conn = get_redis_conn();  // TODO: use connection pool
+    let key = format!("user-{}-subs", user_id);
 
-#[get("/srlist.json", format = "json", rank = 1)]
-pub fn srlist_get() -> JsonValue {
-    println!("THIS IS srlist_get()");
-    let srlist = fetch_sr_subscribed(1);
-    json!(srlist)
+    let _ : () = conn.set(key, serde_json::to_string(&data).unwrap()).unwrap();
 }
 
-#[post("/srlist.json", format = "json", data = "<msg>", rank = 2)]
-pub fn srlist_post(msg: Json<UserSubs>) -> JsonValue {
-    println!("THIS IS srlist_post() ::: {:?}", &msg);
-    let subs = fetch_sr_subscribed(1);
-    println!("subs ::: {:?}", &subs);
+pub fn srlist_get(info: web::Path<(u32,)>) -> Result<HttpResponse> {
+    let srlist = fetch_sr_subscribed(info.0);
 
-    // save_sr_subscribed(1, &msg);
-    json!({ "status": "ok" })  // TODO: Respond here with a simple HTTP 200
+    Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("application/json; charset=utf-8")
+        .body(format!("{}", serde_json::to_string(&srlist)?))
+    )
+}
+
+pub fn srlist_post(info: web::Path<(u32,)>) -> Result<HttpResponse> {
+    let subs = fetch_sr_subscribed(info.0);
+
+     Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("application/json; charset=utf-8")
+        .body("[]")
+    )
+}
+
+pub fn pics_get(info: web::Path<(u32,)>) -> Result<HttpResponse> {
+    let conn = get_redis_conn();  // TODO: use connection pool
+    let result: Vec<String> = conn.lrange("p1", 0, -1).unwrap();
+    let pics: Vec<UserPic> = result.iter().map(|x| UserPic { url: x.clone() }).collect();
+
+     Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("application/json; charset=utf-8")
+        .body(format!("{}", serde_json::to_string(&pics)?))
+    )
+}
+
+pub fn pics_post(info: web::Path<(u32,)>) -> Result<HttpResponse> {
+    // (msg: Json<UserPic>) -> JsonValue {
+    // let conn = get_redis_conn();  // TODO: use connection pool
+    // let _: usize = conn.rpush("p1", &msg.url).unwrap();
+
+     Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("application/json; charset=utf-8")
+        .body("[]")
+    )
 }

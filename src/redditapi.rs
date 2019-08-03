@@ -8,8 +8,7 @@ use std::collections::HashMap;
 
 /// Trophies
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserTrophyListTrophiesItemData {
     icon_70: Option<String>,
     name: Option<String>,
@@ -20,21 +19,18 @@ pub struct UserTrophyListTrophiesItemData {
     description: Option<String>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserTrophyListTrophiesItem {
     kind: String,
     data: UserTrophyListTrophiesItemData,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserTrophyListTrophies {
     trophies: Vec<UserTrophyListTrophiesItem>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserTrophyList {
     kind: String,
     data: UserTrophyListTrophies,
@@ -42,8 +38,7 @@ pub struct UserTrophyList {
 
 /// Comments
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserCommentKindT1 {
     subreddit_id: Option<String>,
     approved_at_utc: Option<f64>,
@@ -111,23 +106,20 @@ pub struct UserCommentKindT1 {
     ups: Option<usize>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserCommentT1 {
     kind: String,
     data: UserCommentKindT1,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserCommentData {
     modhash: String,
     dist: usize,
     children: Vec<UserCommentT1>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UserComments {
     kind: String,
     data: UserCommentData,
