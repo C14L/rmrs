@@ -1,3 +1,8 @@
+
+
+DEPRECATED
+
+
 /// Authenticate to access Reddit API endpoints.
 /// https://github.com/reddit-archive/reddit/wiki/OAuth2
 

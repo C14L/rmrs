@@ -1,9 +1,9 @@
 /// Endpoints accessible on the /api route.
 
-extern crate redis;
+// extern crate redis;
 
-use actix_web::http::{header, StatusCode};
-use actix_web::{web, HttpRequest, HttpResponse, Result};
+use actix_web::http::StatusCode;
+use actix_web::{web, HttpResponse, Result};
 use redis::{Commands, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -53,14 +53,14 @@ fn get_redis_conn() -> Connection {
 }
 
 fn fetch_sr_subscribed(user_id: u32) -> Vec<UserSubs> {
-    let conn = get_redis_conn();  // TODO: use connection pool
+    let mut conn = get_redis_conn();  // TODO: use connection pool
     let key = format!("user-{}-subs", user_id);
     let raw: String = conn.get(key).unwrap_or_default();
     serde_json::from_str(&raw).unwrap_or_default()
 }
 
 fn save_sr_subscribed(user_id: u32, data: Vec<UserSubs>) {
-    let conn = get_redis_conn();  // TODO: use connection pool
+    let mut conn = get_redis_conn();  // TODO: use connection pool
     let key = format!("user-{}-subs", user_id);
 
     let _ : () = conn.set(key, serde_json::to_string(&data).unwrap()).unwrap();
@@ -76,7 +76,7 @@ pub fn srlist_get(info: web::Path<(u32,)>) -> Result<HttpResponse> {
 }
 
 pub fn srlist_post(info: web::Path<(u32,)>) -> Result<HttpResponse> {
-    let subs = fetch_sr_subscribed(info.0);
+    let _subs = fetch_sr_subscribed(info.0);
 
      Ok(HttpResponse::build(StatusCode::OK)
         .content_type("application/json; charset=utf-8")
@@ -84,8 +84,8 @@ pub fn srlist_post(info: web::Path<(u32,)>) -> Result<HttpResponse> {
     )
 }
 
-pub fn pics_get(info: web::Path<(u32,)>) -> Result<HttpResponse> {
-    let conn = get_redis_conn();  // TODO: use connection pool
+pub fn pics_get(_info: web::Path<(u32,)>) -> Result<HttpResponse> {
+    let mut conn = get_redis_conn();  // TODO: use connection pool
     let result: Vec<String> = conn.lrange("p1", 0, -1).unwrap();
     let pics: Vec<UserPic> = result.iter().map(|x| UserPic { url: x.clone() }).collect();
 
@@ -95,7 +95,7 @@ pub fn pics_get(info: web::Path<(u32,)>) -> Result<HttpResponse> {
     )
 }
 
-pub fn pics_post(info: web::Path<(u32,)>) -> Result<HttpResponse> {
+pub fn pics_post(_info: web::Path<(u32,)>) -> Result<HttpResponse> {
     // (msg: Json<UserPic>) -> JsonValue {
     // let conn = get_redis_conn();  // TODO: use connection pool
     // let _: usize = conn.rpush("p1", &msg.url).unwrap();

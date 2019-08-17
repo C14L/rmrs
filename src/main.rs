@@ -9,8 +9,8 @@
 use std::{env, io};
 
 use actix_files as fs;
-use actix_web::middleware::cors::Cors;
-use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
+use actix_cors::Cors;
+// use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{http, middleware, web, App, HttpServer, HttpResponse};
 
 mod helpers; //
@@ -29,9 +29,9 @@ fn main() -> io::Result<()> {
               .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
               .allowed_header(http::header::CONTENT_TYPE)
               .max_age(3600))
-        .wrap(IdentityService::new(
-            CookieIdentityPolicy::new(&[0; 32]).name("auth").secure(false))
-        )
+        // .wrap(IdentityService::new(
+        //     CookieIdentityPolicy::new(&[0; 32]).name("auth").secure(false))
+        // )
         // enable logger - always register actix-web Logger middleware last
         .wrap(
             middleware::Logger::default()

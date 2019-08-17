@@ -5,19 +5,20 @@ authors = ["Christian Steimel <me@C14L.com>"]
 edition = "2018"
 
 [dependencies]
-actix-rt = "0.2.2"
-actix-web = "1.0.0"
-actix-files = "0.1.1"
-actix-session = "0.1.0"
-futures = "0.1.25"
-env_logger = "0.5"
+actix-cors = "0.1.0"
+actix-files = "0.1.4"
+actix-rt = "0.2.4"
+actix-session = "0.2.0"
+actix-web = "1.0.5"
+futures = "0.1.28"
+env_logger = "0.6.2"
 bytes = "0.4"
-
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.39"
-dirs = "1.0.5"
-reqwest = "0.9.15"
-redis = "0.10.0"
+serde = "1.0"
+serde_derive = "1.0.98"
+serde_json = "1.0.40"
+dirs = "2.0.2"
+reqwest = "0.9.19"
+redis = "0.11.0"
 
 # redis_db = { url = "redis://127.0.0.1/", pool_size = 10 }
 # pg_db = { url = "postgres://rmrsuser:plaplapla@localhost:5432/rmrs", pool_size = 10 }
