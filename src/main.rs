@@ -33,41 +33,22 @@ fn main() -> io::Result<()> {
         //     CookieIdentityPolicy::new(&[0; 32]).name("auth").secure(false))
         // )
         // enable logger - always register actix-web Logger middleware last
-        .wrap(
-            middleware::Logger::default()
-        )
-        .service(
-            web::resource("/").route(web::get().to(views::home))
-        )
-        .service(
-            // Simply redirects the client to Reddit's oAuth page.
-            web::resource("/redditauth.html").route(web::get().to(views::redditauth))
-        )
-        .service(
-            // Redirected to by Reddit after auth okay.
-            web::resource("/redditcallback.html").route(web::get().to(views::redditcallback))
-        )
-        .service(
-            //
-            web::resource("/api/{id}/srlist.json").route(web::get().to(api::srlist_get))
-        )
-        .service(
-            //
-            web::resource("/api/{id}/srlist.json").route(web::post().to(api::srlist_post))
-        )
-        .service(
-            //
-            web::resource("/api/{id}/pics.json").route(web::get().to(api::pics_get))
-        )
-        .service(
-            //
-            web::resource("/api/{id}/pics.json").route(web::post().to(api::pics_post))
-        )
-        .service(
-            fs::Files::new("/", "../frontend/").index_file("index.html")
-        )
-        .default_service(
-            web::route().to(|| HttpResponse::NotFound())
-        )
+        .wrap(middleware::Logger::default())
+        .service(web::resource("/").route(web::get().to(views::home)))
+        .service(web::resource("/testing").route(web::get().to_async(views::testing)))
+        // Simply redirects the client to Reddit's oAuth page.
+        .service(web::resource("/redditauth.html").route(web::get().to(views::redditauth)))
+        // Redirected to by Reddit after auth okay.
+        .service(web::resource("/redditcallback.html").route(web::get().to(views::redditcallback)))
+        // Load main app
+        .service(web::resource("/home").route(web::get().to(views::app)))
+
+        .service(web::resource("/api/{id}/srlist.json").route(web::get().to(api::srlist_get)))
+        .service(web::resource("/api/{id}/srlist.json").route(web::post().to(api::srlist_post)))
+        .service(web::resource("/api/{id}/pics.json").route(web::get().to(api::pics_get)))
+        .service(web::resource("/api/{id}/pics.json").route(web::post().to(api::pics_post)))
+        .service(fs::Files::new("/", "../frontend/").index_file("main.css"))
+        .service(fs::Files::new("/", "../frontend/").index_file("main.js"))
+        .default_service( web::route().to(|| HttpResponse::NotFound()) )
     ).bind("127.0.0.1:8001")?.run()
 }

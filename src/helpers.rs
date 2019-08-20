@@ -12,10 +12,11 @@ pub struct User {
 
 impl User {
     pub fn from(_req: &HttpRequest) -> Option<User> {
-        Some(User {
-            id: 123,
-            username: String::from("abc123"),
-        })
+        None
+        // Some(User {
+        //     id: 123,
+        //     username: String::from("abc123"),
+        // })
     }
 }
 
