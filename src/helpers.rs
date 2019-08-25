@@ -1,29 +1,10 @@
 // Helper functions
 //
 
-// use std::borrow::Cow;
-// use actix_web::cookie::Cookie;
-use actix_web::HttpRequest;
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
-pub struct User {
-    pub id: u64,
-    pub username: String,
+pub fn unix_timestamp() -> Result<u64, SystemTimeError> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|t| t.as_secs())
 }
-
-impl User {
-    pub fn from(_req: &HttpRequest) -> Option<User> {
-        None
-        // Some(User {
-        //     id: 123,
-        //     username: String::from("abc123"),
-        // })
-    }
-}
-
-// pub fn get_sessid(req: &HttpRequest) -> Option<String> {
-    // req.headers().get("cookie")
-        // .map(|x| x.to_str().ok().and_then(|x| Some(Cow::from(x))))
-        // .unwrap_or(None)
-        // .map(|x| Cookie::parse(x).ok().and_then(|x| Some(x.value().to_string())))
-        // .unwrap_or(None)
-// }

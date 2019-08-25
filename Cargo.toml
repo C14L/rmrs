@@ -20,7 +20,7 @@ dirs = "2.0"
 reqwest = "=0.9.17"
 redis = "0.11"
 uuid = "0.7"
-short-crypt = "1.0.13"
+jsonwebtoken = "6"
 
 # redis_db = { url = "redis://127.0.0.1/", pool_size = 10 }
 # pg_db = { url = "postgres://rmrsuser:plaplapla@localhost:5432/rmrs", pool_size = 10 }

@@ -1,5 +1,4 @@
 /// Communicate with Reddit API endpoints.
-
 extern crate reqwest;
 
 use reqwest::Url;
@@ -126,14 +125,20 @@ pub struct UserComments {
 }
 
 pub fn fetch_user_trophies(username: &str) -> Result<UserTrophyList, reqwest::Error> {
-    let s = format!("https://www.reddit.com/user/{}/trophies/.json?t=all", username);
+    let s = format!(
+        "https://www.reddit.com/user/{}/trophies/.json?t=all",
+        username
+    );
     let url = Url::parse(&s).unwrap();
     let response: UserTrophyList = reqwest::get(url)?.json()?;
     Ok(response)
 }
 
 pub fn fetch_user_comments(username: &str) -> Result<UserComments, reqwest::Error> {
-    let s = format!("https://www.reddit.com/user/{}/comments/.json?t=all", username);
+    let s = format!(
+        "https://www.reddit.com/user/{}/comments/.json?t=all",
+        username
+    );
     let url = Url::parse(&s).unwrap();
     let response: UserComments = reqwest::get(url)?.json()?;
     Ok(response)
