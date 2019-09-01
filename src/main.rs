@@ -15,7 +15,9 @@ use actix_web::{http, middleware, web, App, HttpResponse, HttpServer};
 
 mod api;
 mod helpers;
+mod jwt;
 mod models;
+mod redditapi;
 mod views;
 
 fn main() -> io::Result<()> {
@@ -32,27 +34,24 @@ fn main() -> io::Result<()> {
                     .allowed_header(http::header::CONTENT_TYPE)
                     .max_age(3600),
             )
-            // .wrap(IdentityService::new(
-            //     CookieIdentityPolicy::new(&[0; 32]).name("auth").secure(false))
-            // )
-            // enable logger - always register actix-web Logger middleware last
-            .wrap(middleware::Logger::default())
+            .wrap(middleware::Logger::default()) // always register Logger middleware last
+            // Define routes
             .service(web::resource("/").route(web::get().to(views::home)))
             .service(web::resource("/testing").route(web::get().to_async(views::testing)))
-            // Simply redirects the client to Reddit's oAuth page.
+            // View routes for oAuth flow
             .service(web::resource("/redditauth.html").route(web::get().to(views::redditauth)))
-            // Redirected to by Reddit after auth okay.
-            .service(
-                web::resource("/redditcallback.html").route(web::get().to(views::redditcallback)),
-            )
-            // Load main app
+            .service(web::resource("/redditcallback.html").route(web::get().to(views::redditcallback)))
             .service(web::resource("/home").route(web::get().to(views::app)))
+            // API routes
+            .service(web::resource("/api/init.json").route(web::get().to(api::init_get)))
             .service(web::resource("/api/{id}/srlist.json").route(web::get().to(api::srlist_get)))
             .service(web::resource("/api/{id}/srlist.json").route(web::post().to(api::srlist_post)))
             .service(web::resource("/api/{id}/pics.json").route(web::get().to(api::pics_get)))
             .service(web::resource("/api/{id}/pics.json").route(web::post().to(api::pics_post)))
+            // Static file routes
             .service(fs::Files::new("/", "../frontend/").index_file("main.css"))
             .service(fs::Files::new("/", "../frontend/").index_file("main.js"))
+            // Errors
             .default_service(web::route().to(|| HttpResponse::NotFound()))
     })
     .bind("127.0.0.1:8001")?

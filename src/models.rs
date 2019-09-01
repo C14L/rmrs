@@ -1,7 +1,8 @@
 // Data models for this app
 //
 
-use actix_web::HttpRequest;
+use crate::jwt;
+use crate::redditapi;
 
 #[derive(Default)]
 pub struct User {
@@ -10,11 +11,18 @@ pub struct User {
 }
 
 impl User {
-    pub fn from(_req: &HttpRequest) -> Option<Self> {
+    pub fn from_reddit(_reddit_user: &redditapi::UserBasics) -> Option<Self> {
         None
         // Some(Self {
         //     id: 123,
         //     username: String::from("abc123"),
         // })
+    }
+
+    pub fn from_jwt(token: &jwt::JwtTokenToken) -> Option<Self> {
+        Some(Self {
+            id: token.user_id.to_owned(),
+            username: token.username.to_owned(),
+        })
     }
 }

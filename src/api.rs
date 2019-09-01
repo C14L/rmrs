@@ -1,10 +1,12 @@
 /// Endpoints accessible on the /api route.
 // extern crate redis;
 use actix_web::http::StatusCode;
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpRequest, HttpResponse, Result, Error};
 use redis::{Commands, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json;
+
+use crate::jwt;
 
 pub struct Sr {
     id: String,           // sans "t5_"
@@ -97,6 +99,43 @@ pub fn pics_post(_info: web::Path<(u32,)>) -> Result<HttpResponse> {
     // let conn = get_redis_conn();  // TODO: use connection pool
     // let _: usize = conn.rpush("p1", &msg.url).unwrap();
 
+    Ok(HttpResponse::build(StatusCode::OK)
+        .content_type("application/json; charset=utf-8")
+        .body("[]"))
+}
+
+// Route: /api/init.json
+// The JWT is in header field "Authorization: Bearer abc123...def456"
+// This is the initial call after the SPA is loaded. The SPA will take
+// the JWT either from the URL path's "x" patameter, or load it from
+// the browser's LocalStorage. The JWT may or may not contain the user's
+// id and username. If there is no username, then fetch the basic user
+// data from Reddit, using the access/refresh token in the JWT.
+pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
+    println!(">>> init_get request...");
+    let header = match req.headers().get("Authorization") {
+        Some(x) => match x.to_str() {
+            Ok(y) => y[7..].to_string(),  // strip the "Bearer " from the begining
+            Err(e) => {
+                println!(">>> ERROR init_get (JWT has no content): {:?}", e);
+                return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).content_type("application/json; charset=utf-8").body("JWT has no content"));
+            },
+        },
+        None => {
+            println!(">>> ERROR init_get (No JWT in header)");
+            return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).content_type("application/json; charset=utf-8").body("No JWT in header"));
+        },
+    };
+    println!(">>> init_get got header: {:?}", header);
+
+    let jwt_token = match jwt::JwtTokenToken::from_string(&header) {
+        Ok(x) => x,
+        Err(e) => {
+            println!(">>> ERROR init_get (JWT invalid): {:?}", e);
+            return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).content_type("application/json; charset=utf-8").body(format!("JWT invalid: {}", e)));
+        },
+    };
+    println!(">>> init_get got jwt_token: {:?}", jwt_token);
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type("application/json; charset=utf-8")
         .body("[]"))
