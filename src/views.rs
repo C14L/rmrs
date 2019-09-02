@@ -63,10 +63,13 @@ pub fn redditcallback(params: actix_web::web::Query<redditapi::RedditAuthCallbac
         Some(x) => x,
         None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Invalid Token.")),
     };
-    let reddit_user = redditapi::fetch_user_basics(&reddit_token).unwrap_or_default();
+    let reddit_user = redditapi::UserBasics::fetch(&reddit_token).unwrap_or_default();
+    println!(">>> redditcallback UserBasics: {:?}", &reddit_user);
+
     let user = models::User::from_reddit(&reddit_user).unwrap_or_default();
-    let jwt_token = jwt::JwtTokenToken::to_string(&user, &reddit_token).unwrap();
-    let url = format!("/home#x={}", &jwt_token);
+    let jwt_token = jwt::JwtTokenToken::new(&user, &reddit_token);
+    // TODO: Set a shorter expire time for the first JWT
+    let url = format!("/home#x={}", &jwt_token.to_string().unwrap());
     Ok(actix_web::HttpResponse::Found()
         .header(actix_web::http::header::LOCATION, url)
         .finish())

@@ -1,7 +1,10 @@
+#![allow(dead_code)]
+
 /// Endpoints accessible on the /api route.
 // extern crate redis;
+
 use actix_web::http::StatusCode;
-use actix_web::{web, HttpRequest, HttpResponse, Result, Error};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
 use redis::{Commands, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -135,6 +138,13 @@ pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
             return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).content_type("application/json; charset=utf-8").body(format!("JWT invalid: {}", e)));
         },
     };
+
+    if jwt_token.username == "" {
+        // fetch user data from Reddit
+
+    }
+
+
     println!(">>> init_get got jwt_token: {:?}", jwt_token);
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type("application/json; charset=utf-8")
