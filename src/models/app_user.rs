@@ -3,16 +3,16 @@
 #![allow(dead_code)]
 
 use crate::jwt;
-use crate::redditapi;
+use crate::models;
 
 #[derive(Default)]
-pub struct User {
+pub struct AppUser {
     pub created: f64,
     pub name: String,
 }
 
-impl User {
-    pub fn from_reddit(reddit_user: &redditapi::UserBasics) -> Option<Self> {
+impl AppUser {
+    pub fn from_reddit(reddit_user: &models::reddit_user::RedditUserMe) -> Option<Self> {
         Some(Self {
             created: reddit_user.created.to_owned(),
             name: reddit_user.name.to_owned(),
@@ -26,4 +26,3 @@ impl User {
         })
     }
 }
-

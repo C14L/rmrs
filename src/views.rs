@@ -13,9 +13,10 @@ use std::fs::File;
 use std::io::prelude::*;
 use uuid::Uuid;
 
-use crate::models;
-use crate::redditapi;
 use crate::jwt;
+use crate::models::app_user::AppUser;
+use crate::models::reddit_user::RedditUserMe;
+use crate::models::reddit_token::{RedditAuthCallback, RedditAccessToken, get_reddit_authorize_url};
 
 
 pub fn testing(_req: actix_web::HttpRequest) -> impl Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
@@ -50,23 +51,21 @@ pub fn home(_req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpRe
 pub fn redditauth(_req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpResponse> {
     println!(">>> New redditauth request, redirecting...");
     let state = Uuid::new_v4().to_string();
-    let url = redditapi::get_reddit_authorize_url(state);
+    let url = get_reddit_authorize_url(state);
     Ok(actix_web::HttpResponse::Found().header(actix_web::http::header::LOCATION, url).finish())
 }
 
 // Route: /redditcallback.html
 // After Reddit auth page: check state and use code to get first token.
-pub fn redditcallback(params: actix_web::web::Query<redditapi::RedditAuthCallback>) -> actix_web::Result<actix_web::HttpResponse>
+pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> actix_web::Result<actix_web::HttpResponse>
 {
     println!(">>> New redditcallback request: code {:?} / state {:?}", &params.code, &params.state);
-    let reddit_token = match redditapi::RedditAccessToken::new(&params.code) {
+    let reddit_token = match RedditAccessToken::new(&params.code) {
         Some(x) => x,
         None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Invalid Token.")),
     };
-    let reddit_user = redditapi::UserBasics::fetch(&reddit_token).unwrap_or_default();
-    println!(">>> redditcallback UserBasics: {:?}", &reddit_user);
-
-    let user = models::User::from_reddit(&reddit_user).unwrap_or_default();
+    let reddit_user = RedditUserMe::fetch(&reddit_token).unwrap_or_default();
+    let user = AppUser::from_reddit(&reddit_user).unwrap_or_default();
     let jwt_token = jwt::JwtTokenToken::new(&user, &reddit_token);
     // TODO: Set a shorter expire time for the first JWT
     let url = format!("/home#x={}", &jwt_token.to_string().unwrap());

@@ -4,12 +4,10 @@ use jsonwebtoken as jwt;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
+use crate::conf::{APP_JWT_SECRET, TOKEN_DEFAUT_LIFETIME_SECS};
 use crate::helpers;
-use crate::models;
-use crate::redditapi;
-
-const APP_JWT_SECRET: &'static str = "io679oyry9y6@*YO(*Y(Y9ogout6od9890@&(&@!!NNDLK'>.OIJI@(JGHKBXM<";
-const TOKEN_DEFAUT_LIFETIME_SECS: u64 = 3600;
+use crate::models::app_user::AppUser;
+use crate::models::reddit_token::RedditAccessToken;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtTokenToken {
@@ -21,7 +19,7 @@ pub struct JwtTokenToken {
 }
 
 impl JwtTokenToken {
-    pub fn new(user: &models::User, reddit_token: &redditapi::RedditAccessToken) -> Self {
+    pub fn new(user: &AppUser, reddit_token: &RedditAccessToken) -> Self {
         JwtTokenToken {
             refresh_token: reddit_token.refresh_token.as_ref().unwrap().to_owned(),
             access_token: reddit_token.access_token.as_ref().unwrap().to_owned(),

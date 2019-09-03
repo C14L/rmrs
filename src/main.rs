@@ -13,12 +13,13 @@ use actix_files as fs;
 // use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{http, middleware, web, App, HttpResponse, HttpServer};
 
-mod api;
-mod helpers;
-mod jwt;
-mod models;
-mod redditapi;
-mod views;
+pub mod api;
+pub mod conf;
+pub mod helpers;
+pub mod jwt;
+pub mod models;
+pub mod redditapi;
+pub mod views;
 
 fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "actix_web=debug");
