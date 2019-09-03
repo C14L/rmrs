@@ -111,9 +111,8 @@ pub fn pics_post(_info: web::Path<(u32,)>) -> Result<HttpResponse> {
 // The JWT is in header field "Authorization: Bearer abc123...def456"
 // This is the initial call after the SPA is loaded. The SPA will take
 // the JWT either from the URL path's "x" patameter, or load it from
-// the browser's LocalStorage. The JWT may or may not contain the user's
-// id and username. If there is no username, then fetch the basic user
-// data from Reddit, using the access/refresh token in the JWT.
+// the browser's LocalStorage. The JWT always contains the user's
+// username.
 pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
     println!(">>> init_get request...");
     let header = match req.headers().get("Authorization") {
@@ -130,7 +129,6 @@ pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
         },
     };
     println!(">>> init_get got header: {:?}", header);
-
     let jwt_token = match jwt::JwtTokenToken::from_string(&header) {
         Ok(x) => x,
         Err(e) => {
@@ -138,13 +136,6 @@ pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
             return Ok(HttpResponse::build(StatusCode::UNAUTHORIZED).content_type("application/json; charset=utf-8").body(format!("JWT invalid: {}", e)));
         },
     };
-
-    if jwt_token.username == "" {
-        // fetch user data from Reddit
-
-    }
-
-
     println!(">>> init_get got jwt_token: {:?}", jwt_token);
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type("application/json; charset=utf-8")

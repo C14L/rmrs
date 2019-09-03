@@ -25,7 +25,7 @@ impl JwtTokenToken {
             access_token: reddit_token.access_token.as_ref().unwrap().to_owned(),
             username: user.name.to_owned(),
             created: user.created.to_owned(),
-            exp: helpers::unix_timestamp().expect("No time?") + TOKEN_DEFAUT_LIFETIME_SECS,
+            exp: helpers::unix_timestamp_in_secs_from_now(TOKEN_DEFAUT_LIFETIME_SECS).unwrap(),
         }
     }
 

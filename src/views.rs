@@ -67,11 +67,20 @@ pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> acti
     let reddit_user = RedditUserMe::fetch(&reddit_token).unwrap_or_default();
     let user = AppUser::from_reddit(&reddit_user).unwrap_or_default();
     let jwt_token = jwt::JwtTokenToken::new(&user, &reddit_token);
-    // TODO: Set a shorter expire time for the first JWT
-    let url = format!("/home#x={}", &jwt_token.to_string().unwrap());
+    let contents = format!(r#"<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="jwt" content="{}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Loading...</title></head><body>Loading...</body><script>
+let token = document.querySelector("meta[name='jwt']").getAttribute("content")
+localStorage.setItem('token', token);
+window.location.href = "/home";
+</script></html>"#, &jwt_token.to_string().unwrap());
+
     Ok(actix_web::HttpResponse::Found()
-        .header(actix_web::http::header::LOCATION, url)
-        .finish())
+        .content_type("text/html; charset=utf-8")
+        .body(contents))
 }
 
 // Route: /home
