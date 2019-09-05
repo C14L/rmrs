@@ -65,18 +65,33 @@ pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> acti
         None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Invalid Token.")),
     };
     let reddit_user = RedditUserMe::fetch(&reddit_token).unwrap_or_default();
-    let user = AppUser::from_reddit(&reddit_user).unwrap_or_default();
+    // Check if this user already has an account
+    let user = match AppUser::load(&reddit_user.name) {
+        Some(x) => x,
+        None => {
+            match AppUser::from_reddit(&reddit_user) {
+                Some(u) => { &u.save(); u },
+                None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("User not found."))
+            }
+        },
+    };
     let jwt_token = jwt::JwtTokenToken::new(&user, &reddit_token);
     let contents = format!(r#"<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8">
-<meta name="jwt" content="{}">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="X-UA-Compatible" content="ie=edge">
-<title>Loading...</title></head><body>Loading...</body><script>
-let token = document.querySelector("meta[name='jwt']").getAttribute("content")
-localStorage.setItem('token', token);
-window.location.href = "/home";
-</script></html>"#, &jwt_token.to_string().unwrap());
+        <html lang="en"><head><meta charset="UTF-8">
+        <meta name="jwt" content="{}">
+        <meta name="me" content="{}">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Loading...</title></head><body>Loading...</body><script>
+        let token = document.querySelector("meta[name='jwt']").getAttribute("content")
+        let user = document.querySelector("meta[name='me']").getAttribute("content")
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', user);
+        window.location.href = "/home";
+        </script></html>"#,
+        &jwt_token.to_string().unwrap(),
+        serde_json::to_string(&user).unwrap()
+    );
 
     Ok(actix_web::HttpResponse::Found()
         .content_type("text/html; charset=utf-8")

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 use crate::jwt;
+use crate::models::app_user::AppUser;
 
 pub struct Sr {
     id: String,           // sans "t5_"
@@ -137,7 +138,10 @@ pub fn init_get(req: HttpRequest) -> Result<HttpResponse> {
         },
     };
     println!(">>> init_get got jwt_token: {:?}", jwt_token);
+
+    let user = AppUser::load(&jwt_token.username);
+
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type("application/json; charset=utf-8")
-        .body("[]"))
+        .body(format!("{}", serde_json::to_string(&user).unwrap())))
 }
