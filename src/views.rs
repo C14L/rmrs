@@ -75,7 +75,10 @@ pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> acti
             }
         },
     };
-    let jwt_token = jwt::JwtTokenToken::new(&user, &reddit_token);
+    let jwt_token = match jwt::JwtTokenToken::new(&user, &reddit_token) {
+        Ok(res) => res,
+        Err(_) => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Token create error.")),
+    };
     let contents = format!(r#"<!DOCTYPE html>
         <html lang="en"><head><meta charset="UTF-8">
         <meta name="jwt" content="{}">
