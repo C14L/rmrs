@@ -1,11 +1,9 @@
 // Data models for this app
 //
-#![allow(dead_code)]
 
-// extern crate redis;
-
-use serde::{Serialize, Deserialize};
 use redis::{Commands, Connection};
+use serde::{Serialize, Deserialize};
+use std::error::Error;
 
 use crate::jwt;
 use crate::models;
@@ -15,6 +13,8 @@ fn get_redis_conn() -> Connection {
     let conn = client.get_connection().unwrap();
     conn
 }
+
+type AppUserResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct AppUser {
@@ -45,10 +45,11 @@ impl AppUser {
         Some(val)
     }
 
-    pub fn save(&self) {
+    pub fn save(&self) -> AppUserResult<()> {
         let mut conn = get_redis_conn(); // TODO: use connection pool
-        let val = serde_json::to_string(&self).unwrap();
+        let val = serde_json::to_string(&self)?;
         let key = format!("rmrs-user-{}", &self.name.to_ascii_lowercase());
-        let _res: String = conn.set(&key, &val).unwrap();
+        let _res: String = conn.set(&key, &val)?;
+        Ok(())
     }
 }
