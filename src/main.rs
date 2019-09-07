@@ -6,12 +6,11 @@
 // https://github.com/actix/examples/blob/master/basics/src/main.rs
 //
 
-use std::{env, io};
-
 use actix_cors::Cors;
 use actix_files as fs;
-// use actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{http, middleware, web, App, HttpResponse, HttpServer};
+use env_logger;
+use std::{env, io};
 
 pub mod api;
 pub mod conf;
@@ -21,9 +20,9 @@ pub mod models;
 pub mod redditapi;
 pub mod views;
 
-fn main() -> io::Result<()> {
+fn main() { // -> io::Result<()> {
     env::set_var("RUST_LOG", "actix_web=debug");
-    // env_logger::init();
+    env_logger::init();
 
     HttpServer::new(|| {
         App::new()
@@ -35,7 +34,9 @@ fn main() -> io::Result<()> {
                     .allowed_header(http::header::CONTENT_TYPE)
                     .max_age(3600),
             )
-            .wrap(middleware::Logger::default()) // always register Logger middleware last
+            .wrap(middleware::DefaultHeaders::new().header("X-Version", "rmrs-0.0.1"))
+            .wrap(middleware::Logger::default())
+            //.wrap(middleware::Logger::new("%a %{User-Agent}i"))
             // Define routes
             .service(web::resource("/").route(web::get().to(views::home)))
             .service(web::resource("/testing").route(web::get().to_async(views::testing)))
@@ -55,6 +56,5 @@ fn main() -> io::Result<()> {
             // Errors
             .default_service(web::route().to(|| HttpResponse::NotFound()))
     })
-    .bind("127.0.0.1:8001")?
-    .run()
+    .bind("127.0.0.1:8001").unwrap().run().unwrap();
 }
