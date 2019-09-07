@@ -1,7 +1,8 @@
 
+use reqwest::header::USER_AGENT;
 use reqwest::Url;
 use serde::{Serialize, Deserialize};
-use reqwest::header::USER_AGENT;
+use std::error::Error;
 
 use crate::conf::{APP_OAUTH_CB, REDDIT_TOKEN_URL, APP_SECRET, APP_NAME, APP_USER_AGENT};
 use crate::helpers::unix_timestamp;
@@ -14,6 +15,8 @@ pub fn get_reddit_authorize_url(state: String) -> String {
 
 /// Redit Auth
 
+type RedditTokenResult<T> = Result<T, Box<dyn Error>>;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RedditAuthCallback {
     pub state: String,
@@ -21,7 +24,7 @@ pub struct RedditAuthCallback {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RedditAccessToken {
+pub struct RedditToken {
     pub access_token: Option<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<usize>,
@@ -32,9 +35,9 @@ pub struct RedditAccessToken {
     pub create_time: Option<u64>,
 }
 
-impl RedditAccessToken {
+impl RedditToken {
     pub fn new(code: &String) -> Option<Self> {
-        println!(">>> RedditAccessToken::new() with code: {:?}", code);
+        println!(">>> RedditToken::new() with code: {:?}", code);
 
         let url = Url::parse(REDDIT_TOKEN_URL).unwrap();
         let body = [
@@ -42,20 +45,20 @@ impl RedditAccessToken {
             ("code", code),
             ("redirect_uri", APP_OAUTH_CB),
         ];
-        println!(">>> RedditAccessToken::new() --> body: {:?}", &body);
-        println!(">>> RedditAccessToken --> url: {:?}", &url);
+        println!(">>> RedditToken::new() --> body: {:?}", &body);
+        println!(">>> RedditToken --> url: {:?}", &url);
         let req = reqwest::Client::new()
             .post(url)
             .basic_auth(APP_NAME, Some(APP_SECRET))
             .header(USER_AGENT, APP_USER_AGENT)
             .form(&body);
-        println!(">>> RedditAccessToken --> req: {:?}", &req);
+        println!(">>> RedditToken --> req: {:?}", &req);
         let mut res = req.send().unwrap();  // TODO: catch possible error!!!
-        println!(">>> RedditAccessToken --> res: {:?}", &res);
+        println!(">>> RedditToken --> res: {:?}", &res);
         let json = res.json();
-        println!(">>> RedditAccessToken --> json: {:?}", &json);
-        json.and_then(|mut x: RedditAccessToken| {
-            println!(">>> RedditAccessToken --> unmarshalled response: {:?}", &x);
+        println!(">>> RedditToken --> json: {:?}", &json);
+        json.and_then(|mut x: RedditToken| {
+            println!(">>> RedditToken --> unmarshalled response: {:?}", &x);
             let t = unix_timestamp().expect("No time?");
             x.create_time = Some(t);
             x.update_time = Some(t);
@@ -63,7 +66,7 @@ impl RedditAccessToken {
             Ok(x)
         })
         .or_else(|e| {
-            println!(">>> RedditAccessToken --> ERROR unmarshalling response: {:?}", &e);
+            println!(">>> RedditToken --> ERROR unmarshalling response: {:?}", &e);
             Err(e)
         }).ok()
     }
@@ -80,14 +83,14 @@ impl RedditAccessToken {
             .basic_auth(APP_NAME, Some(APP_SECRET))
             .header(USER_AGENT, APP_USER_AGENT)
             .form(&body);
-        println!(">>> RedditAccessToken --> req: {:?}", &req);
+        println!(">>> RedditToken --> req: {:?}", &req);
         let mut res = req.send().unwrap();  // TODO: catch possible error!!!
-        println!(">>> RedditAccessToken --> res: {:?}", &res);
-        let json: Result<RedditAccessToken, _> = res.json();
+        println!(">>> RedditToken --> res: {:?}", &res);
+        let json: Result<RedditToken, _> = res.json();
 
         match json {
             Ok(x) => {
-                println!(">>> RedditAccessToken --> json: {:?}", &x);
+                println!(">>> RedditToken --> json: {:?}", &x);
                 let t = unix_timestamp().expect("No time?");
                 self.expires_in = x.expires_in;
                 self.refresh_token = x.refresh_token;

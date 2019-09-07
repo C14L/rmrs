@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::jwt;
 use crate::models::app_user::AppUser;
 use crate::models::reddit_user::RedditUserMe;
-use crate::models::reddit_token::{RedditAuthCallback, RedditAccessToken, get_reddit_authorize_url};
+use crate::models::reddit_token::{RedditAuthCallback, RedditToken, get_reddit_authorize_url};
 
 
 pub fn testing(_req: actix_web::HttpRequest) -> impl Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
@@ -60,7 +60,7 @@ pub fn redditauth(_req: actix_web::HttpRequest) -> actix_web::Result<actix_web::
 pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> actix_web::Result<actix_web::HttpResponse>
 {
     println!(">>> New redditcallback request: code {:?} / state {:?}", &params.code, &params.state);
-    let reddit_token = match RedditAccessToken::new(&params.code) {
+    let reddit_token = match RedditToken::new(&params.code) {
         Some(x) => x,
         None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Invalid Token.")),
     };
@@ -87,9 +87,7 @@ pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> acti
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Loading...</title></head><body>Loading...</body><script>
         let token = document.querySelector("meta[name='jwt']").getAttribute("content")
-        let user = document.querySelector("meta[name='me']").getAttribute("content")
         localStorage.setItem('token', token);
-        localStorage.setItem('user', user);
         window.location.href = "/home";
         </script></html>"#,
         &jwt_token.to_string().unwrap(),

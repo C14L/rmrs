@@ -7,7 +7,7 @@ use std::error::Error;
 use crate::conf::{APP_JWT_SECRET, TOKEN_DEFAUT_LIFETIME_SECS};
 use crate::helpers;
 use crate::models::app_user::AppUser;
-use crate::models::reddit_token::RedditAccessToken;
+use crate::models::reddit_token::RedditToken;
 
 pub type JwtResult<T> = Result<T, Box<dyn Error>>;
 
@@ -21,7 +21,7 @@ pub struct JwtTokenToken {
 }
 
 impl JwtTokenToken {
-    pub fn new(user: &AppUser, reddit_token: &RedditAccessToken) -> JwtResult<Self> {
+    pub fn new(user: &AppUser, reddit_token: &RedditToken) -> JwtResult<Self> {
         Ok(JwtTokenToken {
             refresh_token: reddit_token.refresh_token.as_ref().ok_or("No refresh token")?.to_owned(),
             access_token: reddit_token.access_token.as_ref().ok_or("No access token")?.to_owned(),

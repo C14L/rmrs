@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use reqwest::header::USER_AGENT;
 
 use crate::conf::APP_USER_AGENT;
-use crate::models::reddit_token::RedditAccessToken;
+use crate::models::reddit_token::RedditToken;
 
 /// Reddit User
 
@@ -388,7 +388,7 @@ pub struct Subreddit {
 }
 
 impl RedditUserMe {
-    pub fn fetch(reddit_token: &RedditAccessToken) -> Result<Self, reqwest::Error> {
+    pub fn fetch(reddit_token: &RedditToken) -> Result<Self, reqwest::Error> {
         println!(">>> RedditUserMe::fetch");
         let url = Url::parse("https://oauth.reddit.com/api/v1/me.json").unwrap();
         let req = reqwest::Client::new()
