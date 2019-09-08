@@ -1,7 +1,7 @@
-// Helper functions
-//
-
+use std::error::Error;
 use std::time::{Duration, SystemTime, SystemTimeError, UNIX_EPOCH};
+
+pub type AppResult<T> = Result<T, Box<dyn Error>>;
 
 pub fn unix_timestamp() -> Result<u64, SystemTimeError> {
     SystemTime::now()

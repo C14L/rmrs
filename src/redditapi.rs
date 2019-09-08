@@ -1,12 +1,13 @@
-// #![allow(dead_code)]
+#![allow(dead_code)]
 
 /// Communicate with Reddit API endpoints.
-
 extern crate reqwest;
 
 use reqwest::Url;
 use serde::Deserialize;
 use std::collections::HashMap;
+
+use crate::helpers::AppResult;
 
 /// Trophies
 
@@ -127,22 +128,20 @@ pub struct UserComments {
     data: UserCommentData,
 }
 
-pub fn fetch_user_trophies(username: &str) -> Result<UserTrophyList, reqwest::Error> {
-    let s = format!(
+pub fn fetch_user_trophies(username: &str) -> AppResult<UserTrophyList> {
+    let url = Url::parse(&format!(
         "https://www.reddit.com/user/{}/trophies/.json?t=all",
         username
-    );
-    let url = Url::parse(&s).unwrap();
+    ))?;
     let response: UserTrophyList = reqwest::get(url)?.json()?;
     Ok(response)
 }
 
-pub fn fetch_user_comments(username: &str) -> Result<UserComments, reqwest::Error> {
-    let s = format!(
+pub fn fetch_user_comments(username: &str) -> AppResult<UserComments> {
+    let url = Url::parse(&format!(
         "https://www.reddit.com/user/{}/comments/.json?t=all",
         username
-    );
-    let url = Url::parse(&s).unwrap();
+    ))?;
     let response: UserComments = reqwest::get(url)?.json()?;
     Ok(response)
 }

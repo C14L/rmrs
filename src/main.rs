@@ -10,7 +10,7 @@ use actix_cors::Cors;
 use actix_files as fs;
 use actix_web::{http, middleware, web, App, HttpResponse, HttpServer};
 use env_logger;
-use std::{env, io};
+use std::env;
 
 pub mod api;
 pub mod conf;
@@ -45,11 +45,10 @@ fn main() { // -> io::Result<()> {
             .service(web::resource("/redditcallback.html").route(web::get().to(views::redditcallback)))
             .service(web::resource("/home").route(web::get().to(views::app)))
             // API routes
-            .service(web::resource("/api/init.json").route(web::get().to(api::init_get)))
-            .service(web::resource("/api/{id}/srlist.json").route(web::get().to(api::srlist_get)))
-            .service(web::resource("/api/{id}/srlist.json").route(web::post().to(api::srlist_post)))
-            .service(web::resource("/api/{id}/pics.json").route(web::get().to(api::pics_get)))
-            .service(web::resource("/api/{id}/pics.json").route(web::post().to(api::pics_post)))
+            .service(web::resource("/api/user/me.json").route(web::get().to(api::user_me_get)))
+            .service(web::resource("/api/user/me.json").route(web::get().to(api::user_me_post)))
+            .service(web::resource("/api/user/me/subs.json").route(web::post().to(api::user_me_subs_post)))
+            .service(web::resource("/api/user/me/pics.json").route(web::post().to(api::user_me_pics_post)))
             // Static file routes
             .service(fs::Files::new("/", "../frontend/").index_file("main.css"))
             .service(fs::Files::new("/", "../frontend/").index_file("main.js"))

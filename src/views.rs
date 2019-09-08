@@ -6,7 +6,10 @@
 extern crate reqwest;
 extern crate serde_derive;
 
-use actix_web;
+use actix_web::http::header::LOCATION;
+use actix_web::Error as ActixError;
+use actix_web::Result as ActixResult;
+use actix_web::{web, HttpResponse};
 use futures::future::Future;
 use reqwest::Url;
 use std::fs::File;
@@ -15,74 +18,70 @@ use uuid::Uuid;
 
 use crate::jwt;
 use crate::models::app_user::AppUser;
-use crate::models::reddit_user::RedditUserMe;
-use crate::models::reddit_token::{RedditAuthCallback, RedditToken, get_reddit_authorize_url};
+use crate::models::reddit_token::{RedditAuthCallback, RedditToken};
+use crate::models::reddit_user::RedditUser;
 
+const CONTENT_TYPE: &'static str = "text/html; charset=utf-8";
 
-pub fn testing(_req: actix_web::HttpRequest) -> impl Future<Item = actix_web::HttpResponse, Error = actix_web::Error> {
-    println!(">>> testing request begin");
+fn short_html(msg: String) -> ActixResult<HttpResponse> {
+    let c = format!(r#"<!DOCTYPE html><html><head><meta charset="utf-8">
+                    </head><body>{}</body></html>"#, msg);
+    Ok(HttpResponse::Ok().content_type(CONTENT_TYPE).body(c))
+}
+
+pub fn testing() -> impl Future<Item = HttpResponse, Error = ActixError> {
     let url = Url::parse("https://example.com/").unwrap();
-    println!(">>> testing url built");
-    let req = reqwest::Client::new().get(url);
-    println!(">>> testing req prepared");
-    actix_web::web::block(move || req.send())
+    let reqw = reqwest::Client::new().get(url);
+    web::block(move || reqw.send())
         .from_err()
-        .and_then(|res| {
-            println!(">>> testing res: {:?}", &res);
-            actix_web::HttpResponse::Ok()
-                .content_type("text/html")
-                .body("Hello!")
-        })
+        .and_then(|_res| HttpResponse::Ok().content_type(CONTENT_TYPE).body("Hello!"))
 }
 
 // Route: /
-pub fn home(_req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpResponse> {
-    println!(">>> New home request.");
+pub fn home() -> ActixResult<HttpResponse> {
     let mut file = File::open("../frontend/index.html")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(actix_web::HttpResponse::build(actix_web::http::StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(contents))
+    Ok(HttpResponse::Ok().content_type(CONTENT_TYPE).body(contents))
 }
 
 // Route: /redditauth.html
 // Redirect the client to the Reddit oAuth autorization page.
-pub fn redditauth(_req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpResponse> {
-    println!(">>> New redditauth request, redirecting...");
+pub fn redditauth() -> ActixResult<HttpResponse> {
     let state = Uuid::new_v4().to_string();
-    let url = get_reddit_authorize_url(state);
-    Ok(actix_web::HttpResponse::Found().header(actix_web::http::header::LOCATION, url).finish())
+    let url = RedditToken::get_auth_url(state);
+    Ok(HttpResponse::Found().header(LOCATION, url).finish())
 }
 
 // Route: /redditcallback.html
 // After Reddit auth page: check state and use code to get first token.
-pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> actix_web::Result<actix_web::HttpResponse>
-{
-    println!(">>> New redditcallback request: code {:?} / state {:?}", &params.code, &params.state);
+pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<HttpResponse> {
     let reddit_token = match RedditToken::new(&params.code) {
-        Some(x) => x,
-        None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Invalid Token.")),
+        Ok(x) => x,
+        Err(e) => return short_html(format!("Invalid Token: {:?}", e)),
     };
-    let reddit_user = RedditUserMe::fetch(&reddit_token).unwrap_or_default();
+    let reddit_user = RedditUser::fetch_me(&reddit_token).unwrap_or_default();
     // Check if this user already has an account
     let user = match AppUser::load(&reddit_user.name) {
-        Some(x) => x,
-        None => {
+        Ok(app_user_loaded) => app_user_loaded,
+        Err(_) => {
             match AppUser::from_reddit(&reddit_user) {
-                Some(u) => { &u.save(); u },
-                None => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("User not found."))
+                Ok(app_user_from_reddit) => {
+                    &app_user_from_reddit.save(); // Write to storage
+                    app_user_from_reddit
+                }
+                Err(_) => return short_html("User not found.".into()),
             }
-        },
+        }
     };
     let jwt_token = match jwt::JwtTokenToken::new(&user, &reddit_token) {
         Ok(res) => res,
-        Err(_) => return Ok(actix_web::HttpResponse::Ok().content_type("text/html").body("Token create error.")),
+        Err(_) => return short_html("Token create error.".into()),
     };
-    let contents = format!(r#"<!DOCTYPE html>
+    let contents = format!(
+        r#"<!DOCTYPE html>
         <html lang="en"><head><meta charset="UTF-8">
         <meta name="jwt" content="{}">
-        <meta name="me" content="{}">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Loading...</title></head><body>Loading...</body><script>
@@ -90,23 +89,17 @@ pub fn redditcallback(params: actix_web::web::Query<RedditAuthCallback>) -> acti
         localStorage.setItem('token', token);
         window.location.href = "/home";
         </script></html>"#,
-        &jwt_token.to_string().unwrap(),
-        serde_json::to_string(&user).unwrap()
+        &jwt_token.to_string().unwrap()
     );
-
-    Ok(actix_web::HttpResponse::Found()
-        .content_type("text/html; charset=utf-8")
-        .body(contents))
+    Ok(HttpResponse::Ok().content_type(CONTENT_TYPE).body(contents))
 }
 
 // Route: /home
 // This route simply serves the static SPA with no further auth checks.
 // Auth checks will be done later be the API endpoints.
-pub fn app() -> actix_web::Result<actix_web::HttpResponse> {
+pub fn app() -> ActixResult<HttpResponse> {
     let mut file = File::open("../frontend/app.html")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(actix_web::HttpResponse::build(actix_web::http::StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(contents))
+    Ok(HttpResponse::Ok().content_type(CONTENT_TYPE).body(contents))
 }

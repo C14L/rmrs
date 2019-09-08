@@ -1,21 +1,10 @@
-
 use reqwest::header::USER_AGENT;
 use reqwest::Url;
+use serde::de::DeserializeOwned;
 use serde::{Serialize, Deserialize};
-use std::error::Error;
 
 use crate::conf::{APP_OAUTH_CB, REDDIT_TOKEN_URL, APP_SECRET, APP_NAME, APP_USER_AGENT};
-use crate::helpers::unix_timestamp;
-
-pub fn get_reddit_authorize_url(state: String) -> String {
-    format!("https://ssl.reddit.com/api/v1/authorize?duration=permanent&response_type=code&\
-        scope=identity,mysubreddits&redirect_uri={}&state={}&client_id={}",
-        APP_OAUTH_CB, state, APP_NAME)
-}
-
-/// Redit Auth
-
-type RedditTokenResult<T> = Result<T, Box<dyn Error>>;
+use crate::helpers::{unix_timestamp, AppResult};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RedditAuthCallback {
@@ -23,82 +12,101 @@ pub struct RedditAuthCallback {
     pub code: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct RedditToken {
-    pub access_token: Option<String>,
-    pub token_type: Option<String>,
-    pub expires_in: Option<usize>,
-    pub refresh_token: Option<String>,
-    pub scope: Option<String>,
-    pub update_time: Option<u64>,
-    pub expire_time: Option<u64>,
-    pub create_time: Option<u64>,
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: usize,
+    pub refresh_token: String,
+    pub scope: String,
+
+    #[serde(default)]
+    pub create_time: u64,
+
+    #[serde(default)]
+    pub update_time: u64,
+
+    #[serde(default)]
+    pub expire_time: u64,
 }
 
 impl RedditToken {
-    pub fn new(code: &String) -> Option<Self> {
-        println!(">>> RedditToken::new() with code: {:?}", code);
+    /// Using the state value, it builds the URL to redirect the user to for authorization.
+    pub fn get_auth_url(state: String) -> String {
+        format!("https://ssl.reddit.com/api/v1/authorize?duration=permanent&response_type=code&\
+            scope=identity,mysubreddits&redirect_uri={}&state={}&client_id={}",
+            APP_OAUTH_CB, state, APP_NAME)
+    }
 
-        let url = Url::parse(REDDIT_TOKEN_URL).unwrap();
+    pub fn new(code: &String) -> AppResult<Self> {
+        let url = Url::parse(REDDIT_TOKEN_URL)?;
         let body = [
             ("grant_type", "authorization_code"),
             ("code", code),
             ("redirect_uri", APP_OAUTH_CB),
         ];
-        println!(">>> RedditToken::new() --> body: {:?}", &body);
-        println!(">>> RedditToken --> url: {:?}", &url);
-        let req = reqwest::Client::new()
+        reqwest::Client::new()
             .post(url)
             .basic_auth(APP_NAME, Some(APP_SECRET))
             .header(USER_AGENT, APP_USER_AGENT)
-            .form(&body);
-        println!(">>> RedditToken --> req: {:?}", &req);
-        let mut res = req.send().unwrap();  // TODO: catch possible error!!!
-        println!(">>> RedditToken --> res: {:?}", &res);
-        let json = res.json();
-        println!(">>> RedditToken --> json: {:?}", &json);
-        json.and_then(|mut x: RedditToken| {
-            println!(">>> RedditToken --> unmarshalled response: {:?}", &x);
-            let t = unix_timestamp().expect("No time?");
-            x.create_time = Some(t);
-            x.update_time = Some(t);
-            x.expire_time = Some(x.expires_in.unwrap() as u64 + t);
-            Ok(x)
-        })
-        .or_else(|e| {
-            println!(">>> RedditToken --> ERROR unmarshalling response: {:?}", &e);
-            Err(e)
-        }).ok()
+            .form(&body)
+            .send()?
+            .json()
+            .map(|mut x: RedditToken| {
+                let t = unix_timestamp().expect("No time?");
+                x.create_time = t;
+                x.update_time = t;
+                x.expire_time = x.expires_in as u64 + t;
+                x
+            })
+            .map_err(|e| e.into())
     }
 
-    pub fn refresh(&mut self) -> Option<&Self> {
+    pub fn refresh(&mut self) -> AppResult<&mut Self> {
+        // TODO: untested.
         let url = Url::parse(REDDIT_TOKEN_URL).unwrap();
         let body = [
             ("grant_type", "refresh_token"),
-            ("refresh_token", &self.refresh_token.to_owned().unwrap()),
+            ("refresh_token", &self.refresh_token.to_owned()),
         ];
-
-        let req = reqwest::Client::new()
+        reqwest::Client::new()
             .post(url)
-            .basic_auth(APP_NAME, Some(APP_SECRET))
+            // .basic_auth(APP_NAME, Some(APP_SECRET)) --> needed ????
             .header(USER_AGENT, APP_USER_AGENT)
-            .form(&body);
-        println!(">>> RedditToken --> req: {:?}", &req);
-        let mut res = req.send().unwrap();  // TODO: catch possible error!!!
-        println!(">>> RedditToken --> res: {:?}", &res);
-        let json: Result<RedditToken, _> = res.json();
-
-        match json {
-            Ok(x) => {
-                println!(">>> RedditToken --> json: {:?}", &x);
+            .form(&body)
+            .send()?
+            .json()
+            .map(|x: RedditToken| {
+                println!(">>> Fresh RedditToken --> json: {:?}", &x);
                 let t = unix_timestamp().expect("No time?");
                 self.expires_in = x.expires_in;
                 self.refresh_token = x.refresh_token;
-                self.update_time = Some(t);
-                self.expire_time = Some(x.expires_in.unwrap() as u64 + t);
-                Some(self)
-            },
-            Err(_) => None,
-        }
+                self.update_time = t;
+                self.expire_time = x.expires_in as u64 + t;  // access token expire, NOT jwt expire
+                self
+            })
+            .map_err(|e| e.into())
+    }
+
+    /// Fetch data that requires token authentication from Reddit API.
+    ///
+    /// TODO: If the access token is expired, this method will automatically
+    /// attempt to renew the token and re-try the request.
+    pub fn fetch<T>(&self, url: &'static str) -> AppResult<T>
+    where
+        T: DeserializeOwned,
+    {
+        let url = Url::parse(url)?;
+        let query_params = [("raw_json", "1")];
+
+        reqwest::Client::new()
+            .get(url)
+            .query(&query_params)
+            .header("Authorization", format!("bearer {}", self.access_token))
+            .header(USER_AGENT, APP_USER_AGENT)
+            .send()?
+            .json()
+            .map(|x: T| x)
+            .map_err(|e| e.into())
     }
 }

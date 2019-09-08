@@ -1,16 +1,11 @@
-
-use reqwest::Url;
-use serde_json;
 use serde::{Serialize, Deserialize};
-use reqwest::header::USER_AGENT;
+use serde_json;
 
-use crate::conf::APP_USER_AGENT;
+use crate::helpers::AppResult;
 use crate::models::reddit_token::RedditToken;
 
-/// Reddit User
-
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct RedditUserMe {
+pub struct RedditUser {
     #[serde(rename = "is_employee")]
     pub is_employee: bool,
 
@@ -387,28 +382,9 @@ pub struct Subreddit {
     pub user_is_subscriber: bool,
 }
 
-impl RedditUserMe {
-    pub fn fetch(reddit_token: &RedditToken) -> Result<Self, reqwest::Error> {
-        println!(">>> RedditUserMe::fetch");
-        let url = Url::parse("https://oauth.reddit.com/api/v1/me.json").unwrap();
-        let req = reqwest::Client::new()
-            .get(url)
-            .query(&[("raw_json", "1")])
-            .header("Authorization", format!("bearer {}", reddit_token.access_token.as_ref().unwrap()))
-            .header(USER_AGENT, APP_USER_AGENT);
-        println!(">>> RedditUserMe::fetch --> req: {:?}", &req);
-        let mut res = req.send()?;  // TODO: catch possible reqwest error and convert into()
-        // println!(">>> RedditUserMe::fetch --> res: {:?}", &res);
-        // println!(">>> RedditUserMe::fetch --> res TEXT: {:?}", &res.text());
-
-        res.json::<Self>()
-        // .and_then(|x: Self| {
-        //     println!(">>> JSON RedditUserMe::fetch --> res: {:?}", &x);
-        //     Ok(Self { name: x.name.to_owned(), ..Default::default() })
-        // })
-        .or_else(|e| {
-            println!(">>> + + + ERROR + + + RedditUserMe::fetch --> {:?}", e);
-            Ok(Self { ..Default::default() })
-        })
+impl RedditUser {
+    /// Fetch user data for authenticated user from Reddit API.
+    pub fn fetch_me(reddit_token: &RedditToken) -> AppResult<Self> {
+        reddit_token.fetch::<Self>("https://oauth.reddit.com/api/v1/me.json")
     }
 }

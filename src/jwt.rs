@@ -23,8 +23,8 @@ pub struct JwtTokenToken {
 impl JwtTokenToken {
     pub fn new(user: &AppUser, reddit_token: &RedditToken) -> JwtResult<Self> {
         Ok(JwtTokenToken {
-            refresh_token: reddit_token.refresh_token.as_ref().ok_or("No refresh token")?.to_owned(),
-            access_token: reddit_token.access_token.as_ref().ok_or("No access token")?.to_owned(),
+            refresh_token: reddit_token.refresh_token.to_owned(),
+            access_token: reddit_token.access_token.to_owned(),
             username: user.name.to_owned(),
             created: user.created.to_owned(),
             exp: helpers::unix_timestamp_in_secs_from_now(TOKEN_DEFAUT_LIFETIME_SECS)?,
