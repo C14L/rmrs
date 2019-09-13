@@ -10,6 +10,7 @@ use redis::{Commands, Connection};
 
 use crate::jwt::JwtTokenToken;
 use crate::models::app_user::AppUser;
+use crate::models::app_pushtoken::AppPushtoken;
 
 const CONTENT_TYPE: &'static str = "application/json; charset=utf-8";
 
@@ -57,6 +58,8 @@ fn get_token_from_header(headers: &HeaderMap) -> AppResult<JwtTokenToken> {
 pub fn user_me_get(req: HttpRequest) -> ActixResult<HttpResponse> {
     let token = get_token_from_header(&req.headers()).unwrap(); // TODO: handle error
 
+    let _ =  AppPushtoken::fetch().ok();
+
     match AppUser::load(&token.username) {
         Ok(user) => Ok(HttpResponse::Ok().json(&user)),
         Err(_) => return short_json(StatusCode::NOT_FOUND, "User not found."),
@@ -64,5 +67,14 @@ pub fn user_me_get(req: HttpRequest) -> ActixResult<HttpResponse> {
 }
 
 pub fn user_me_post() -> ActixResult<HttpResponse> {
+    short_json(StatusCode::OK, "Not implemented.")
+}
+
+/// Route: /api/search.json
+///
+/// The (cached) results of a search for Reditors with similar subreddit
+/// subscriptions. The individual search parameters are set via POST
+/// elsewhere, like the list of subs or the geo location.
+pub fn search_get() -> ActixResult<HttpResponse> {
     short_json(StatusCode::OK, "Not implemented.")
 }

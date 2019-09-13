@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-// Data models for this app
-//
+extern crate diesel;
 
+use diesel::prelude::*;
 use redis::{Commands, Connection};
 use serde::{Serialize, Deserialize};
 
@@ -10,6 +10,7 @@ use crate::jwt::JwtTokenToken;
 use crate::models::app_subreddit::AppSubreddit;
 use crate::models::reddit_user::RedditUser;
 use crate::helpers::AppResult;
+use crate::helpers::db_establish_connection;
 
 fn get_redis_conn() -> Connection {
     let client = redis::Client::open("redis://127.0.0.1:6379/").unwrap();

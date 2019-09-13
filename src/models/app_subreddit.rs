@@ -19,7 +19,6 @@ fn get_redis_conn() -> Connection {
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AppSubreddit {
     id: String,             // sans "t5_"
-    display_name: String,   // primary name to index
     name: String,
     created: String,        // created_utc
     url: String,            // max_length=50; e.g. "/r/de"
@@ -27,6 +26,7 @@ pub struct AppSubreddit {
     lang: String,           // max_length=10; language
     title: String,          // max_length=100
     header_title: String,   // max_length=100
+    display_name: String,   // primary name to index
     subreddit_type: String, // "public", "restricted", or "private"
     subscribers: u64,       // subreddit subscribers count
     subscribers_here: u64,  // subreddit subscribers with an account on reddmeet

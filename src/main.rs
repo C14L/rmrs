@@ -1,4 +1,6 @@
-//#[macro_use] extern crate actix_web;
+#[macro_use]
+extern crate diesel;
+extern crate dotenv;
 
 //
 // Basic example:
