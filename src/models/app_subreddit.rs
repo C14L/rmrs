@@ -1,26 +1,28 @@
-#![allow(dead_code, unused_imports, unused_variables)]
+// #![allow(dead_code, unused_imports, unused_variables)]
 
-/// AppSubreddit
-///
-/// All data on a single subreddit, independently from any user.
+extern crate diesel;
 
-use redis::{Commands, Connection};
+// use chrono::naive::NaiveDate;
+use diesel::prelude::*;
+// use redis::{Commands, Connection};
 use serde::{Serialize, Deserialize};
 
 use crate::jwt;
+use crate::models::*;
 use crate::helpers::AppResult;
+use crate::helpers::db_establish_connection;
 
-fn get_redis_conn() -> Connection {
-    let client = redis::Client::open("redis://127.0.0.1:6379/").unwrap();
-    let conn = client.get_connection().unwrap();
-    conn
-}
+// fn get_redis_conn() -> Connection {
+//     let client = redis::Client::open("redis://127.0.0.1:6379/").unwrap();
+//     let conn = client.get_connection().unwrap();
+//     conn
+// }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, Queryable)]
 pub struct AppSubreddit {
     id: String,             // sans "t5_"
     name: String,
-    created: String,        // created_utc
+    // created: NaiveDate,     // created_utc
     url: String,            // max_length=50; e.g. "/r/de"
     over18: bool,
     lang: String,           // max_length=10; language
@@ -28,12 +30,24 @@ pub struct AppSubreddit {
     header_title: String,   // max_length=100
     display_name: String,   // primary name to index
     subreddit_type: String, // "public", "restricted", or "private"
-    subscribers: u64,       // subreddit subscribers count
-    subscribers_here: u64,  // subreddit subscribers with an account on reddmeet
+    subscribers: i32,       // subreddit subscribers count
+    subscribers_here: i32,  // subreddit subscribers with an account on reddmeet
 }
 
 impl AppSubreddit {
-    pub fn fetch(token: jwt::JwtTokenToken) -> AppResult<Self> {
+    pub fn fetch() -> AppResult<Self> {
+        use self::schema::sr::dsl::*;
+
+        let conn = db_establish_connection();
+
+        let res = sr
+            // .filter(published.eq(true))
+            .limit(5)
+            .load::<Self>(&conn)
+            .expect("Error loading data");
+
+        println!(">>> DB result: {:?}", &res);
+
         Ok(Self { ..Default::default() })
     }
 }

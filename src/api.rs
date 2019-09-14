@@ -10,7 +10,7 @@ use redis::{Commands, Connection};
 
 use crate::jwt::JwtTokenToken;
 use crate::models::app_user::AppUser;
-use crate::models::app_pushtoken::AppPushtoken;
+use crate::models::app_subreddit::AppSubreddit;
 
 const CONTENT_TYPE: &'static str = "application/json; charset=utf-8";
 
@@ -58,7 +58,7 @@ fn get_token_from_header(headers: &HeaderMap) -> AppResult<JwtTokenToken> {
 pub fn user_me_get(req: HttpRequest) -> ActixResult<HttpResponse> {
     let token = get_token_from_header(&req.headers()).unwrap(); // TODO: handle error
 
-    let _ =  AppPushtoken::fetch().ok();
+    let _ =  AppSubreddit::fetch().ok();
 
     match AppUser::load(&token.username) {
         Ok(user) => Ok(HttpResponse::Ok().json(&user)),
