@@ -1,16 +1,19 @@
 #![allow(dead_code, unused_imports)]
 
-/// Endpoints accessible on the /api route.
-
-use crate::helpers::AppResult;
 use actix_web::http::HeaderMap;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
 use redis::{Commands, Connection};
 
+use crate::helpers::AppResult;
 use crate::jwt::JwtTokenToken;
 use crate::models::app_user::AppUser;
 use crate::models::app_subreddit::AppSubreddit;
+use crate::models::reddit_user::RedditUser;
+use crate::models::reddit_user_subreddit::RedditUserSubredditList;
+use crate::models::reddit_user_subreddit_karma::RedditUserSubredditKarmaList;
+use crate::models::reddit_token::RedditToken;
+
 
 const CONTENT_TYPE: &'static str = "application/json; charset=utf-8";
 
@@ -56,11 +59,17 @@ fn get_token_from_header(headers: &HeaderMap) -> AppResult<JwtTokenToken> {
 /// the browser's LocalStorage. The JWT always contains the user's
 /// username.
 pub fn user_me_get(req: HttpRequest) -> ActixResult<HttpResponse> {
-    let token = get_token_from_header(&req.headers()).unwrap(); // TODO: handle error
+    let jwt_token = get_token_from_header(&req.headers()).unwrap(); // TODO: handle error
+    let reddit_token = RedditToken::from_jwt(&jwt_token).unwrap(); // TODO: handle error
 
-    let _ =  AppSubreddit::fetch().ok();
+    // let res = RedditUserSubredditList::fetch_me(&reddit_token);
+    let res = RedditUser::fetch_me(&reddit_token);
 
-    match AppUser::load(&token.username) {
+    println!("####################################################");
+    println!("### RedditUser --> {:?}", &res);
+    println!("####################################################");
+
+    match AppUser::load(&jwt_token.username) {
         Ok(user) => Ok(HttpResponse::Ok().json(&user)),
         Err(_) => return short_json(StatusCode::NOT_FOUND, "User not found."),
     }

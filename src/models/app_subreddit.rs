@@ -35,7 +35,13 @@ pub struct AppSubreddit {
 }
 
 impl AppSubreddit {
-    pub fn fetch() -> AppResult<Self> {
+    pub fn fetch_for_user(token: jwt::JwtTokenToken) -> AppResult<Self> {
+        // TODO: fetch subreddit data from Reddit.
+
+        Ok(Self { ..Default::default() })
+    }
+
+    pub fn load() -> AppResult<Self> {
         use self::schema::sr::dsl::*;
 
         let conn = db_establish_connection();
