@@ -65,6 +65,9 @@ impl RedditToken {
             ("code", code),
             ("redirect_uri", APP_OAUTH_CB),
         ];
+
+        println!("RedditToken::new() will send request with body: {:?}", &body);
+
         reqwest::Client::new()
             .post(url)
             .basic_auth(APP_NAME, Some(APP_SECRET))
@@ -124,23 +127,25 @@ impl RedditToken {
 
         let data = match req.send() {
             Ok(val) => {
-                let auth = &val.headers().get("www-authenticate").unwrap().to_str()?;
+                if let Some(auth) = &val.headers().get("www-authenticate") {
+                    if auth.to_str()?.contains("invalid_token") {
+                        println!("### INVALID TOKEN! --> {:?}", &auth);
+                        println!("### TOKEN BEFORE --> {:?}", self.access_token);
+                        self.refresh()?;
+                        println!("### TOKEN AFTER --> {:?}", self.access_token);
 
-                if auth.contains("invalid_token") {
-                    println!("### INVALID TOKEN! --> {:?}", &auth);
-                    println!("### TOKEN BEFORE --> {:?}", self.access_token);
-                    self.refresh()?;
-                    println!("### TOKEN AFTER --> {:?}", self.access_token);
+                        let req2 = reqwest::Client::new()
+                            .get(url.to_owned())
+                            .query(&query_params)
+                            .header(USER_AGENT, APP_USER_AGENT)
+                            .header("Authorization", format!("bearer {}", self.access_token));
 
-                    let req2 = reqwest::Client::new()
-                        .get(url.to_owned())
-                        .query(&query_params)
-                        .header(USER_AGENT, APP_USER_AGENT)
-                        .header("Authorization", format!("bearer {}", self.access_token));
-
-                    match req2.send() {
-                        Ok(val) => Ok(val),
-                        Err(e) => Err(e),
+                        match req2.send() {
+                            Ok(val) => Ok(val),
+                            Err(e) => Err(e),
+                        }
+                    } else {
+                        Ok(val)
                     }
                 } else {
                     Ok(val)

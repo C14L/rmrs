@@ -56,11 +56,11 @@ pub fn redditauth() -> ActixResult<HttpResponse> {
 // Route: /redditcallback.html
 // After Reddit auth page: check state and use code to get first token.
 pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<HttpResponse> {
-    let reddit_token = match RedditToken::new(&params.code) {
+    let mut reddit_token = match RedditToken::new(&params.code) {
         Ok(x) => x,
-        Err(e) => return short_html(format!("Invalid Token: {:?}", e)),
+        Err(e) => return short_html(format!("Invalid Token (fn redditcallback): {:?}", e)),
     };
-    let reddit_user = RedditUser::fetch_me(&reddit_token).unwrap_or_default();
+    let reddit_user = RedditUser::fetch_me(&mut reddit_token).unwrap_or_default();
 
     // Check if this user already has an account
     let user = match AppUser::load(&reddit_user.name) {

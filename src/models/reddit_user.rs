@@ -384,7 +384,7 @@ pub struct Subreddit {
 
 impl RedditUser {
     /// Fetch user data for authenticated user from Reddit API.
-    pub fn fetch_me(reddit_token: &RedditToken) -> AppResult<Self> {
+    pub fn fetch_me(reddit_token: &mut RedditToken) -> AppResult<Self> {
         reddit_token.fetch::<Self>("https://oauth.reddit.com/api/v1/me.json")
     }
 }
