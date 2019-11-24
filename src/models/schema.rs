@@ -7,7 +7,7 @@ table! {
 }
 
 table! {
-    use diesel::sql_types::{Bool, Date, Int4, Varchar};
+    use diesel::sql_types::*;
 
     sr (id) {
         id -> Varchar,

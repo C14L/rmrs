@@ -313,7 +313,7 @@ pub struct ChildData {
 
 impl RedditUserSubredditList {
     /// Fetch the token owner's subreddit data.
-    pub fn fetch_me(reddit_token: &RedditToken) -> AppResult<Self> {
+    pub fn fetch_me(reddit_token: &mut RedditToken) -> AppResult<Self> {
         reddit_token.fetch::<Self>("https://oauth.reddit.com/subreddits/mine/subscriber.json")
     }
 }

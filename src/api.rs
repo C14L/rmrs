@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports)]
 
+use actix_web::http::header::AUTHORIZATION;
 use actix_web::http::HeaderMap;
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
@@ -42,7 +43,11 @@ pub fn user_me_pics_post() -> ActixResult<HttpResponse> {
 fn get_token_from_header(headers: &HeaderMap) -> AppResult<JwtTokenToken> {
     let header = match headers.get("Authorization") {
         Some(x) => match x.to_str() {
-            Ok(y) => y[7..].to_string(), // strip the "Bearer " from the begining
+            Ok(y) => {
+                println!("@@@ get_token_from_header --> {:?}", y);
+                // strip the "Bearer " from the begining
+                y[7..].to_string()
+            },
             Err(_) => return Err("JWT has no content.".into()),
         },
         None => return Err("No JWT in header.".into()),
@@ -59,18 +64,27 @@ fn get_token_from_header(headers: &HeaderMap) -> AppResult<JwtTokenToken> {
 /// the browser's LocalStorage. The JWT always contains the user's
 /// username.
 pub fn user_me_get(req: HttpRequest) -> ActixResult<HttpResponse> {
-    let jwt_token = get_token_from_header(&req.headers()).unwrap(); // TODO: handle error
-    let reddit_token = RedditToken::from_jwt(&jwt_token).unwrap(); // TODO: handle error
-
-    // let res = RedditUserSubredditList::fetch_me(&reddit_token);
-    let res = RedditUser::fetch_me(&reddit_token);
+    println!("### user_me_get --> init");
+    let headers = &req.headers();
+    println!("### user_me_get --> got headers");
+    let jwt_token = get_token_from_header(headers).unwrap(); // TODO: handle error
+    println!("### user_me_get --> got jwt_token");
+    let reddit_token = &mut RedditToken::from_jwt(&jwt_token).unwrap(); // TODO: handle error
+    println!("### user_me_get --> got reddit_token");
+    let res = RedditUser::fetch_me(reddit_token);
+    println!("### user_me_get --> got reddit user");
+    let jwt_token = jwt_token.refresh(&reddit_token).unwrap();
+    println!("### user_me_get --> refreshed jwt_token");
 
     println!("####################################################");
     println!("### RedditUser --> {:?}", &res);
     println!("####################################################");
 
     match AppUser::load(&jwt_token.username) {
-        Ok(user) => Ok(HttpResponse::Ok().json(&user)),
+        Ok(user) => {
+            let t = jwt_token.to_string().unwrap();
+            Ok(HttpResponse::Ok().header(AUTHORIZATION, t).json(&user))
+        },
         Err(_) => return short_json(StatusCode::NOT_FOUND, "User not found."),
     }
 }

@@ -28,7 +28,7 @@ pub struct RedditUserSubredditKarmaData {
 
 impl RedditUserSubredditKarmaList {
     /// Fetch the token owner's reddit data.
-    pub fn fetch_me(reddit_token: &RedditToken) -> AppResult<Self> {
+    pub fn fetch_me(reddit_token: &mut RedditToken) -> AppResult<Self> {
         reddit_token.fetch::<Self>("https://oauth.reddit.com/api/v1/me/karma.json")
     }
 }

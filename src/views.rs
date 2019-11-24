@@ -61,6 +61,7 @@ pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<Htt
         Err(e) => return short_html(format!("Invalid Token: {:?}", e)),
     };
     let reddit_user = RedditUser::fetch_me(&reddit_token).unwrap_or_default();
+
     // Check if this user already has an account
     let user = match AppUser::load(&reddit_user.name) {
         Ok(app_user_loaded) => app_user_loaded,
@@ -74,10 +75,12 @@ pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<Htt
             }
         }
     };
+
     let jwt_token = match jwt::JwtTokenToken::new(&user, &reddit_token) {
         Ok(res) => res,
         Err(_) => return short_html("Token create error.".into()),
     };
+
     let contents = format!(
         r#"<!DOCTYPE html>
         <html lang="en"><head><meta charset="UTF-8">

@@ -22,9 +22,9 @@ pub struct JwtTokenToken {
 
 impl JwtTokenToken {
     pub fn new(user: &AppUser, reddit_token: &RedditToken) -> JwtResult<Self> {
-        Ok(JwtTokenToken {
-            refresh_token: reddit_token.refresh_token.to_owned(),
+        Ok(Self {
             access_token: reddit_token.access_token.to_owned(),
+            refresh_token: reddit_token.refresh_token.to_owned(),
             username: user.name.to_owned(),
             created: user.created.to_owned(),
             exp: helpers::unix_timestamp_in_secs_from_now(TOKEN_DEFAUT_LIFETIME_SECS)?,
@@ -42,5 +42,15 @@ impl JwtTokenToken {
         let secret = APP_JWT_SECRET.as_bytes();
         let jwt_header = jwt::Header::default();
         jwt::encode(&jwt_header, &self, secret.as_ref()).map_err(|e| e.into())
+    }
+
+    pub fn refresh(self, reddit_token: &RedditToken) -> JwtResult<Self> {
+        Ok(Self {
+            access_token: reddit_token.access_token.to_owned(),  // new
+            refresh_token: self.refresh_token.to_owned(),
+            username: self.username.to_owned(),
+            created: self.created.to_owned(),
+            exp: helpers::unix_timestamp_in_secs_from_now(TOKEN_DEFAUT_LIFETIME_SECS)?,
+        })
     }
 }

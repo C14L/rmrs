@@ -35,7 +35,7 @@ pub struct AppSubreddit {
 }
 
 impl AppSubreddit {
-    pub fn fetch_for_user(token: jwt::JwtTokenToken) -> AppResult<Self> {
+    pub fn fetch_for_user(_token: jwt::JwtTokenToken) -> AppResult<Self> {
         // TODO: fetch subreddit data from Reddit.
 
         Ok(Self { ..Default::default() })

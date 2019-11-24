@@ -31,6 +31,14 @@ pub struct RedditToken {
     pub expire_time: u64,
 }
 
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct RedditRefreshToken {
+    access_token: String, // Your access token
+    token_type: String,   // The word "bearer"
+    expires_in: usize,    // Unix Epoch Seconds
+    scope: String,        // A scope string
+}
+
 impl RedditToken {
     /// Using the state value, it builds the URL to redirect the user to for authorization.
     pub fn get_auth_url(state: String) -> String {
@@ -74,72 +82,87 @@ impl RedditToken {
             .map_err(|e| e.into())
     }
 
-    pub fn refresh(&mut self) -> AppResult<&mut Self> {
-        // TODO: untested.
+    pub fn refresh(&mut self) -> AppResult<()> {
         let url = Url::parse(REDDIT_TOKEN_URL).unwrap();
         let body = [
             ("grant_type", "refresh_token"),
             ("refresh_token", &self.refresh_token.to_owned()),
         ];
-        reqwest::Client::new()
+        let _ = reqwest::Client::new()
             .post(url)
-            // .basic_auth(APP_NAME, Some(APP_SECRET)) --> needed ????
+            .basic_auth(APP_NAME, Some(APP_SECRET))
             .header(USER_AGENT, APP_USER_AGENT)
             .form(&body)
             .send()?
             .json()
-            .map(|x: RedditToken| {
-                println!(">>> Fresh RedditToken --> json: {:?}", &x);
+            .map(|x: RedditRefreshToken| {
                 let t = unix_timestamp().expect("No time?");
+                self.access_token = x.access_token;
                 self.expires_in = x.expires_in;
-                self.refresh_token = x.refresh_token;
-                self.update_time = t;
                 self.expire_time = x.expires_in as u64 + t; // access token expire, NOT jwt expire
-                self
-            })
-            .map_err(|e| e.into())
+                self.update_time = t;
+            });
+
+        Ok(())
     }
 
     /// Fetch data that requires token authentication from Reddit API.
     ///
     /// TODO: If the access token is expired, this method will automatically
     /// attempt to renew the token and re-try the request.
-    pub fn fetch<T>(&self, url: &'static str) -> AppResult<T>
+    pub fn fetch<T>(&mut self, url: &'static str) -> AppResult<T>
     where
         T: DeserializeOwned,
     {
         let url = Url::parse(url)?;
         let query_params = [("raw_json", "1")];
-
-        let res = reqwest::Client::new()
-            .get(url)
+        let req = reqwest::Client::new()
+            .get(url.to_owned())
             .query(&query_params)
-            .header("Authorization", format!("bearer {}", self.access_token))
             .header(USER_AGENT, APP_USER_AGENT)
-            .send();
+            .header("Authorization", format!("bearer {}", &self.access_token));
 
-        match res {
-            Ok(mut val) => {
+        let data = match req.send() {
+            Ok(val) => {
                 let auth = &val.headers().get("www-authenticate").unwrap().to_str()?;
+
                 if auth.contains("invalid_token") {
                     println!("### INVALID TOKEN! --> {:?}", &auth);
-                }
+                    println!("### TOKEN BEFORE --> {:?}", self.access_token);
+                    self.refresh()?;
+                    println!("### TOKEN AFTER --> {:?}", self.access_token);
 
-                match val.json() {
-                    Ok(data) => Ok(data),
-                    Err(e) => {
-                        // Detect expired access_token here; if necessary
-                        // get a new access_token and retry request.
-                        println!("### RedditToken::fetch ERR-01 --> {:?}", e);
-                        Err(e.into())
+                    let req2 = reqwest::Client::new()
+                        .get(url.to_owned())
+                        .query(&query_params)
+                        .header(USER_AGENT, APP_USER_AGENT)
+                        .header("Authorization", format!("bearer {}", self.access_token));
+
+                    match req2.send() {
+                        Ok(val) => Ok(val),
+                        Err(e) => Err(e),
                     }
+                } else {
+                    Ok(val)
+                }
+            }
+            Err(e) => {
+                println!("### RedditToken::fetch ERR-01 --> {:?}", &e);
+                Err(e)
+            }
+        };
+
+        match data {
+            Ok(mut val) => match val.json() {
+                Ok(d) => Ok(d),
+                Err(e) => {
+                    println!("### RedditToken::fetch ERR-02 --> {:?}", &e);
+                    Err(e.into())
                 }
             },
             Err(e) => {
-                // Detect expired access_token here; if necessary
-                // get a new access_token and retry request.
-                println!("### RedditToken::fetch ERR-02 --> {:?}", e);
-                Err(e.into())
+                    println!("### RedditToken::fetch ERR-03 --> {:?}", &e);
+                    panic!("BLah!");
             }
         }
     }
