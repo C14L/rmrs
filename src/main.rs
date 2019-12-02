@@ -48,7 +48,7 @@ fn main() { // -> io::Result<()> {
             .service(web::resource("/home").route(web::get().to(views::app)))
             // API routes
             .service(web::resource("/api/user/me.json").route(web::get().to(api::user_me_get)))
-            .service(web::resource("/api/user/me.json").route(web::get().to(api::user_me_post)))
+            .service(web::resource("/api/user/me.json").route(web::post().to(api::user_me_post)))
             .service(web::resource("/api/user/me/subs.json").route(web::post().to(api::user_me_subs_post)))
             .service(web::resource("/api/user/me/pics.json").route(web::post().to(api::user_me_pics_post)))
             // Static file routes

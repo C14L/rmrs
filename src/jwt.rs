@@ -33,8 +33,11 @@ impl JwtTokenToken {
 
     pub fn from_string(token: &String) -> JwtResult<Self> {
         let secret = APP_JWT_SECRET.as_bytes();
+        println!("@@@ JwtTokenToken::from_string() -> secret: {:?}", &secret);
         let alg = jwt::Validation::new(jwt::Algorithm::HS256);
+        println!("@@@ JwtTokenToken::from_string() -> alg: {:?}", &alg);
         let token_data = jwt::decode::<JwtTokenToken>(&token, secret, &alg);
+        println!("@@@ JwtTokenToken::from_string() -> token_data: {:?}", &token_data);
         token_data.map(|x| x.claims).map_err(|e| e.into())
     }
 

@@ -77,9 +77,12 @@ pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<Htt
     };
 
     let jwt_token = match jwt::JwtTokenToken::new(&user, &reddit_token) {
-        Ok(res) => res,
+        Ok(res) => res.to_string().unwrap(),
         Err(_) => return short_html("Token create error.".into()),
     };
+
+    println!("############################################");
+    println!("### redditcallback() -> jwt_token: {:?}", &jwt_token);
 
     let contents = format!(
         r#"<!DOCTYPE html>
@@ -90,10 +93,14 @@ pub fn redditcallback(params: web::Query<RedditAuthCallback>) -> ActixResult<Htt
         <title>Loading...</title></head><body>Loading...</body><script>
         let token = document.querySelector("meta[name='jwt']").getAttribute("content")
         localStorage.setItem('token', token);
+        console.log('Token written to localStorage: ', token);
         window.location.href = "/home";
-        </script></html>"#,
-        &jwt_token.to_string().unwrap()
+        </script></html>"#, &jwt_token
     );
+
+    println!("############################################");
+    println!("### redditcallback() -> contents: {:?}", &contents);
+
     Ok(HttpResponse::Ok().content_type(CONTENT_TYPE).body(contents))
 }
 
